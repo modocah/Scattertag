@@ -8,7 +8,8 @@ export async function createNote(
   const now = new Date().toISOString();
 
   const result = await db.runAsync(
-    `INSERT INTO notes (text, created_at, updated_at, is_pinned, type)
+    `INSERT INTO notes
+      (text, created_at, updated_at, is_pinned, type)
      VALUES (?, ?, ?, ?, 'note')`,
     text,
     now,
@@ -91,6 +92,39 @@ export async function getListItems(noteId: number) {
   );
 }
 
+export async function deleteNote(id: number) {
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `DELETE FROM notes WHERE id = ?`,
+    id
+  );
+}
+
+export async function deleteNoteAndItems(
+  noteId: number
+) {
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `DELETE FROM list_items
+     WHERE note_id = ?`,
+    noteId
+  );
+
+  await db.runAsync(
+    `DELETE FROM note_hashtags
+     WHERE note_id = ?`,
+    noteId
+  );
+
+  await db.runAsync(
+    `DELETE FROM notes
+     WHERE id = ?`,
+    noteId
+  );
+}
+
 export async function toggleListItem(
   itemId: number,
   completed: boolean
@@ -150,15 +184,6 @@ export async function deleteListItem(
   );
 }
 
-export async function deleteNote(id: number) {
-  const db = await getDatabase();
-
-  await db.runAsync(
-    `DELETE FROM notes WHERE id = ?`,
-    id
-  );
-}
-
 export async function updateNotePin(
   noteId: number,
   isPinned: boolean
@@ -193,20 +218,172 @@ export async function updateNoteText(
   );
 }
 
-export async function deleteNoteAndItems(
+export async function addHashtagsToNote(
+  noteId: number,
+  hashtags: string[]
+) {
+  const db = await getDatabase();
+
+  for (const hashtag of hashtags) {
+    const name = hashtag
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase();
+
+    if (!name) {
+      continue;
+    }
+
+    const existingTag =
+      await db.getFirstAsync<{
+        id: string;
+      }>(
+        `SELECT id
+         FROM hashtags
+         WHERE name = ?`,
+        name
+      );
+
+    let hashtagId: string;
+
+    if (existingTag) {
+      hashtagId = existingTag.id;
+    } else {
+      hashtagId =
+        `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2, 10)}`;
+
+      await db.runAsync(
+        `INSERT INTO hashtags
+          (id, user_id, name)
+         VALUES (?, ?, ?)`,
+        hashtagId,
+        'local',
+        name
+      );
+    }
+
+    await db.runAsync(
+      `INSERT OR IGNORE INTO note_hashtags
+        (note_id, hashtag_id)
+       VALUES (?, ?)`,
+      noteId,
+      hashtagId
+    );
+  }
+}
+
+export async function getNoteHashtags(
   noteId: number
 ) {
   const db = await getDatabase();
 
-  await db.runAsync(
-    `DELETE FROM list_items
-     WHERE note_id = ?`,
+  return db.getAllAsync<{
+    id: string;
+    name: string;
+  }>(
+    `SELECT hashtags.id, hashtags.name
+     FROM hashtags
+     INNER JOIN note_hashtags
+       ON hashtags.id = note_hashtags.hashtag_id
+     WHERE note_hashtags.note_id = ?
+     ORDER BY hashtags.name ASC`,
     noteId
   );
+}
 
-  await db.runAsync(
-    `DELETE FROM notes
-     WHERE id = ?`,
-    noteId
+export async function getHashtags() {
+  const db = await getDatabase();
+
+  return db.getAllAsync<{
+    id: string;
+    name: string;
+    note_count: number;
+  }>(
+    `SELECT
+       hashtags.id,
+       hashtags.name,
+       COUNT(note_hashtags.note_id) AS note_count
+     FROM hashtags
+     LEFT JOIN note_hashtags
+       ON hashtags.id = note_hashtags.hashtag_id
+     GROUP BY hashtags.id
+     ORDER BY hashtags.name ASC`
+  );
+}
+
+export async function getNotesByHashtag(
+  hashtag: string
+) {
+  const db = await getDatabase();
+
+  const name = hashtag
+    .trim()
+    .replace(/^#/, '')
+    .toLowerCase();
+
+  return db.getAllAsync<{
+    id: number;
+    text: string;
+    created_at: string;
+    updated_at: string;
+    is_pinned: number;
+    type: string;
+  }>(
+    `SELECT notes.*
+     FROM notes
+     INNER JOIN note_hashtags
+       ON notes.id = note_hashtags.note_id
+     INNER JOIN hashtags
+       ON hashtags.id = note_hashtags.hashtag_id
+     WHERE hashtags.name = ?
+     ORDER BY notes.is_pinned DESC,
+              notes.created_at DESC`,
+    name
+  );
+}
+
+export async function debugHashtagSchema() {
+  const db = await getDatabase();
+
+  const hashtagColumns =
+    await db.getAllAsync(
+      `PRAGMA table_info(hashtags)`
+    );
+
+  const linkColumns =
+    await db.getAllAsync(
+      `PRAGMA table_info(note_hashtags)`
+    );
+
+  const hashtags =
+    await db.getAllAsync(
+      `SELECT * FROM hashtags`
+    );
+
+  const links =
+    await db.getAllAsync(
+      `SELECT * FROM note_hashtags`
+    );
+
+  console.log(
+    'HASHTAGS COLUMNS:',
+    hashtagColumns
+  );
+
+  console.log(
+    'LINK COLUMNS:',
+    linkColumns
+  );
+
+  console.log(
+    'HASHTAGS DATA:',
+    hashtags
+  );
+
+  console.log(
+    'LINK DATA:',
+    links
   );
 }

@@ -1,11 +1,9 @@
 import * as SQLite from 'expo-sqlite';
 
 export async function getDatabase() {
-  const db = await SQLite.openDatabaseAsync('scattertag.db');
-
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-  `);
+  const db = await SQLite.openDatabaseAsync(
+    'scattertag.db'
+  );
 
   await db.runAsync(`
     CREATE TABLE IF NOT EXISTS notes (
@@ -28,8 +26,6 @@ export async function getDatabase() {
       FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
     )
   `);
-
-
 
   return db;
 }

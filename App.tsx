@@ -21,8 +21,15 @@ import {
 
 import NotesScreen from './screens/NotesScreen';
 import NoteDetailScreen from './screens/NoteDetailScreen';
+import TagsScreen from './screens/TagsScreen';
+import TagNotesScreen from './screens/TagNotesScreen';
+
 import { getDatabase } from './database/database';
-import { createNote, createList } from './database/notes';
+import {
+  createNote,
+  createList,
+  addHashtagsToNote,
+} from './database/notes';
 
 type ListItem = {
   id: number;
@@ -33,20 +40,28 @@ type ListItem = {
 type RootStackParamList = {
   Capture: undefined;
   Notes: undefined;
+  Tags: undefined;
+  TagNotes: {
+    hashtag: string;
+  };
   NoteDetail: {
     noteId: number;
   };
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack =
+  createNativeStackNavigator<RootStackParamList>();
 
 function CaptureScreen() {
   const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList>
+    >();
 
   const [text, setText] = useState('');
   const [listMode, setListMode] = useState(false);
-  const [listItems, setListItems] = useState<ListItem[]>([]);
+  const [listItems, setListItems] =
+    useState<ListItem[]>([]);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -61,62 +76,112 @@ function CaptureScreen() {
   };
 
   const finishNote = async () => {
-  /*
-   * Finish a list.
-   */
+    /*
+     * Finish a list.
+     */
     if (listMode) {
       const finalItem = text.trim();
 
-      let finalItems = [...listItems];
-
-      if (finalItem) {
-        finalItems.push({
-          id: Date.now(),
-          text: finalItem,
-          completed: false,
-        });
-      }
+      const finalItems = finalItem
+        ? [
+            ...listItems,
+            {
+              id: Date.now(),
+              text: finalItem,
+              completed: false,
+            },
+          ]
+        : listItems;
 
       if (finalItems.length === 0) {
         return;
       }
 
       try {
-        await createList(finalItems);
+        await createList(
+          finalItems.map((item) => ({
+            text: item.text,
+            completed: item.completed,
+          }))
+        );
 
         setText('');
         setListItems([]);
         setListMode(false);
       } catch (error) {
-        console.error('Failed to save list:', error);
+        console.error(
+          'Failed to save list:',
+          error
+        );
       }
 
       return;
     }
 
     /*
-    * Normal note.
-    */
+     * Normal note.
+     */
     const noteText = text.trim();
 
-    if (!noteText) return;
+    if (!noteText) {
+      return;
+    }
 
     /*
-    * /pin shortcut
-    *
-    * /pin can appear anywhere in the note.
-    */
+     * /pin shortcut
+     *
+     * Works anywhere in the note.
+     * Example:
+     * Call dentist tomorrow /pin
+     * /pin Call dentist tomorrow
+     * Call /pin dentist tomorrow
+     */
     const pinCommand = /\/pin\b/i;
     const isPinned = pinCommand.test(noteText);
-    const cleanedText = noteText.replace(pinCommand, '').trim();
 
-    if (!cleanedText) return;
+    const cleanedText = noteText
+      .replace(pinCommand, '')
+      .trim();
+
+    if (!cleanedText) {
+      return;
+    }
 
     try {
-      await createNote(cleanedText, isPinned);
+      const noteId = await createNote(
+        cleanedText,
+        isPinned
+      );
+
+      /*
+       * Extract hashtags from the cleaned note.
+       */
+      const hashtags =
+        cleanedText.match(
+          /#[A-Za-z0-9_]+/g
+        ) ?? [];
+
+      /*
+       * Save hashtag relationships.
+       */
+      await addHashtagsToNote(
+        noteId,
+        hashtags
+      );
+
+      /*
+       * TEMPORARY DIAGNOSTIC
+       *
+       * This lets us see exactly what is happening
+       * with the hashtag tables after saving.
+       */
+
       setText('');
     } catch (error) {
-      console.error('Failed to save note:', error);
+      console.error(
+        'Failed to save note:',
+        error
+      );
     }
   };
 
@@ -167,7 +232,9 @@ function CaptureScreen() {
      */
     const item = text.trim();
 
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     setListItems((current) => [
       ...current,
@@ -199,13 +266,18 @@ function CaptureScreen() {
       style={[
         styles.safeArea,
         {
-          backgroundColor: colors.background,
+          backgroundColor:
+            colors.background,
         },
       ]}
     >
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : 'height'
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -220,21 +292,43 @@ function CaptureScreen() {
             ScatterTag
           </Text>
 
-          <Pressable
-            onPress={() => navigation.navigate('Notes')}
-            style={styles.notesButton}
-          >
-            <Text
-              style={[
-                styles.notesButtonText,
-                {
-                  color: colors.primary,
-                },
-              ]}
+          <View style={styles.headerButtons}>
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Notes')
+              }
+              style={styles.headerButton}
             >
-              Notes
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.headerButtonText,
+                  {
+                    color: colors.primary,
+                  },
+                ]}
+              >
+                Notes
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Tags')
+              }
+              style={styles.headerButton}
+            >
+              <Text
+                style={[
+                  styles.headerButtonText,
+                  {
+                    color: colors.primary,
+                  },
+                ]}
+              >
+                Tags
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Main content */}
@@ -247,7 +341,9 @@ function CaptureScreen() {
               },
             ]}
           >
-            {listMode ? 'Make a list' : 'Have a thought?'}
+            {listMode
+              ? 'Make a list'
+              : 'Have a thought?'}
           </Text>
 
           <Text
@@ -302,42 +398,49 @@ function CaptureScreen() {
           )}
 
           {/* Temporary list preview */}
-          {listMode && listItems.length > 0 && (
-            <View style={styles.listPreview}>
-              {listItems.map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => toggleListItem(item.id)}
-                  style={styles.previewRow}
-                >
-                  <Text
-                    style={[
-                      styles.previewCheckbox,
-                      {
-                        color: item.completed
-                          ? colors.primary
-                          : colors.secondary,
-                      },
-                    ]}
+          {listMode &&
+            listItems.length > 0 && (
+              <View style={styles.listPreview}>
+                {listItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() =>
+                      toggleListItem(item.id)
+                    }
+                    style={styles.previewRow}
                   >
-                    {item.completed ? '☑' : '□'}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.previewCheckbox,
+                        {
+                          color:
+                            item.completed
+                              ? colors.primary
+                              : colors.secondary,
+                        },
+                      ]}
+                    >
+                      {item.completed
+                        ? '☑'
+                        : '□'}
+                    </Text>
 
-                  <Text
-                    style={[
-                      styles.previewText,
-                      {
-                        color: colors.text,
-                      },
-                      item.completed && styles.completedText,
-                    ]}
-                  >
-                    {item.text}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+                    <Text
+                      style={[
+                        styles.previewText,
+                        {
+                          color: colors.text,
+                        },
+                        item.completed &&
+                          styles.completedText,
+                      ]}
+                    >
+                      {item.text}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
         </View>
 
         {/* Composer */}
@@ -345,8 +448,10 @@ function CaptureScreen() {
           style={[
             styles.composer,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              backgroundColor:
+                colors.surface,
+              borderColor:
+                colors.border,
             },
           ]}
         >
@@ -355,7 +460,9 @@ function CaptureScreen() {
             onPress={toggleListMode}
             accessibilityRole="button"
             accessibilityLabel={
-              listMode ? 'Turn off list mode' : 'Turn on list mode'
+              listMode
+                ? 'Turn off list mode'
+                : 'Turn on list mode'
             }
             style={styles.listButton}
           >
@@ -382,12 +489,18 @@ function CaptureScreen() {
                 ? 'Add a list item...'
                 : "What's on your mind?"
             }
-            placeholderTextColor={colors.secondary}
+            placeholderTextColor={
+              colors.secondary
+            }
             multiline
             textAlignVertical="top"
-            returnKeyType={listMode ? 'next' : 'send'}
+            returnKeyType={
+              listMode ? 'next' : 'send'
+            }
             submitBehavior={
-              listMode ? 'submit' : 'blurAndSubmit'
+              listMode
+                ? 'submit'
+                : 'blurAndSubmit'
             }
             onSubmitEditing={handleSubmit}
             style={[
@@ -403,19 +516,24 @@ function CaptureScreen() {
             onPress={finishNote}
             accessibilityRole="button"
             accessibilityLabel={
-              listMode ? 'Finish list' : 'Save note'
+              listMode
+                ? 'Finish list'
+                : 'Save note'
             }
             style={[
               styles.sendButton,
               {
                 backgroundColor:
-                  text.trim() || listItems.length > 0
+                  text.trim() ||
+                  listItems.length > 0
                     ? colors.primary
                     : colors.border,
               },
             ]}
           >
-            <Text style={styles.sendArrow}>➤</Text>
+            <Text style={styles.sendArrow}>
+              ➤
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -425,12 +543,15 @@ function CaptureScreen() {
 
 export default function App() {
   /*
-   * Initialize the local SQLite database when the app starts.
+   * Initialize the local SQLite database
+   * when the app starts.
    */
   React.useEffect(() => {
     getDatabase()
       .then(() =>
-        console.log('ScatterTag database initialized')
+        console.log(
+          'ScatterTag database initialized'
+        )
       )
       .catch((error) =>
         console.error(
@@ -462,6 +583,16 @@ export default function App() {
           name="NoteDetail"
           component={NoteDetailScreen}
         />
+
+        <Stack.Screen
+          name="Tags"
+          component={TagsScreen}
+        />
+
+        <Stack.Screen
+          name="TagNotes"
+          component={TagNotesScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -490,12 +621,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  notesButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
-  notesButtonText: {
+  headerButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginLeft: 4,
+  },
+
+  headerButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
