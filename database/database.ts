@@ -29,22 +29,7 @@ export async function getDatabase() {
     )
   `);
 
-  await db.runAsync(`
-    CREATE TABLE IF NOT EXISTS hashtags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE
-    )
-  `);
 
-  await db.runAsync(`
-    CREATE TABLE IF NOT EXISTS note_hashtags (
-      note_id INTEGER NOT NULL,
-      hashtag_id INTEGER NOT NULL,
-      PRIMARY KEY (note_id, hashtag_id),
-      FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
-      FOREIGN KEY (hashtag_id) REFERENCES hashtags(id) ON DELETE CASCADE
-    )
-  `);
 
   return db;
 }
