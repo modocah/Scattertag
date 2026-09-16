@@ -9,11 +9,45 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  NavigationContainer,
+  useNavigation,
+} from '@react-navigation/native';
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
 
-export default function App() {
+import NotesScreen from './screens/NotesScreen';
+import NoteDetailScreen from './screens/NoteDetailScreen';
+import { getDatabase } from './database/database';
+import { createNote, createList } from './database/notes';
+
+type ListItem = {
+  id: number;
+  text: string;
+  completed: boolean;
+};
+
+type RootStackParamList = {
+  Capture: undefined;
+  Notes: undefined;
+  NoteDetail: {
+    noteId: number;
+  };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function CaptureScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   const [text, setText] = useState('');
   const [listMode, setListMode] = useState(false);
+  const [listItems, setListItems] = useState<ListItem[]>([]);
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -26,50 +60,287 @@ export default function App() {
     primary: isDark ? '#8B83FF' : '#6C63FF',
   };
 
-  const sendNote = () => {
-    if (!text.trim()) return;
+  const finishNote = async () => {
+  /*
+   * Finish a list.
+   */
+    if (listMode) {
+      const finalItem = text.trim();
 
-    // Persistence will be added in the next milestone.
+      let finalItems = [...listItems];
+
+      if (finalItem) {
+        finalItems.push({
+          id: Date.now(),
+          text: finalItem,
+          completed: false,
+        });
+      }
+
+      if (finalItems.length === 0) {
+        return;
+      }
+
+      try {
+        await createList(finalItems);
+
+        setText('');
+        setListItems([]);
+        setListMode(false);
+      } catch (error) {
+        console.error('Failed to save list:', error);
+      }
+
+      return;
+    }
+
+    /*
+    * Normal note.
+    */
+    const noteText = text.trim();
+
+    if (!noteText) return;
+
+    /*
+    * /pin shortcut
+    *
+    * /pin can appear anywhere in the note.
+    */
+    const pinCommand = /\/pin\b/i;
+    const isPinned = pinCommand.test(noteText);
+    const cleanedText = noteText.replace(pinCommand, '').trim();
+
+    if (!cleanedText) return;
+
+    try {
+      await createNote(cleanedText, isPinned);
+      setText('');
+    } catch (error) {
+      console.error('Failed to save note:', error);
+    }
+  };
+
+  const toggleListMode = () => {
+    /*
+     * Turn list mode off.
+     */
+    if (listMode) {
+      setListMode(false);
+      setListItems([]);
+      return;
+    }
+
+    /*
+     * If the user already typed something,
+     * preserve it as the first list item.
+     */
+    const currentText = text.trim();
+
+    if (currentText) {
+      setListItems([
+        {
+          id: Date.now(),
+          text: currentText,
+          completed: false,
+        },
+      ]);
+
+      setText('');
+    }
+
+    setListMode(true);
+  };
+
+  const handleSubmit = () => {
+    /*
+     * Normal mode:
+     * Enter saves the note.
+     */
+    if (!listMode) {
+      finishNote();
+      return;
+    }
+
+    /*
+     * List mode:
+     * Enter creates the next list item.
+     */
+    const item = text.trim();
+
+    if (!item) return;
+
+    setListItems((current) => [
+      ...current,
+      {
+        id: Date.now(),
+        text: item,
+        completed: false,
+      },
+    ]);
+
     setText('');
-    setListMode(false);
+  };
+
+  const toggleListItem = (id: number) => {
+    setListItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              completed: !item.completed,
+            }
+          : item
+      )
+    );
   };
 
   return (
     <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
     >
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: colors.text,
+              },
+            ]}
+          >
             ScatterTag
           </Text>
+
+          <Pressable
+            onPress={() => navigation.navigate('Notes')}
+            style={styles.notesButton}
+          >
+            <Text
+              style={[
+                styles.notesButtonText,
+                {
+                  color: colors.primary,
+                },
+              ]}
+            >
+              Notes
+            </Text>
+          </Pressable>
         </View>
 
+        {/* Main content */}
         <View style={styles.emptyState}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Have a thought?
+          <Text
+            style={[
+              styles.emptyTitle,
+              {
+                color: colors.text,
+              },
+            ]}
+          >
+            {listMode ? 'Make a list' : 'Have a thought?'}
           </Text>
 
-          <Text style={[styles.emptyText, { color: colors.secondary }]}>
-            Just type it. Organize it later.
+          <Text
+            style={[
+              styles.emptyText,
+              {
+                color: colors.secondary,
+              },
+            ]}
+          >
+            {listMode
+              ? 'Press Enter to add the next item.'
+              : 'Just type it. Organize it later.'}
           </Text>
 
-          <View style={styles.tips}>
-            <Text style={[styles.tip, { color: colors.secondary }]}>
-              □  Tap the checkbox to start a list
-            </Text>
-            <Text style={[styles.tip, { color: colors.secondary }]}>
-              #  Add tags to find notes later
-            </Text>
-            <Text style={[styles.tip, { color: colors.secondary }]}>
-              /pin  Keep something important at the top
-            </Text>
-          </View>
+          {/* Normal-mode tips */}
+          {!listMode && (
+            <View style={styles.tips}>
+              <Text
+                style={[
+                  styles.tip,
+                  {
+                    color: colors.secondary,
+                  },
+                ]}
+              >
+                □ Tap the checkbox to start a list
+              </Text>
+
+              <Text
+                style={[
+                  styles.tip,
+                  {
+                    color: colors.secondary,
+                  },
+                ]}
+              >
+                # Add tags to find notes later
+              </Text>
+
+              <Text
+                style={[
+                  styles.tip,
+                  {
+                    color: colors.secondary,
+                  },
+                ]}
+              >
+                /pin Keep something important at the top
+              </Text>
+            </View>
+          )}
+
+          {/* Temporary list preview */}
+          {listMode && listItems.length > 0 && (
+            <View style={styles.listPreview}>
+              {listItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => toggleListItem(item.id)}
+                  style={styles.previewRow}
+                >
+                  <Text
+                    style={[
+                      styles.previewCheckbox,
+                      {
+                        color: item.completed
+                          ? colors.primary
+                          : colors.secondary,
+                      },
+                    ]}
+                  >
+                    {item.completed ? '☑' : '□'}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.previewText,
+                      {
+                        color: colors.text,
+                      },
+                      item.completed && styles.completedText,
+                    ]}
+                  >
+                    {item.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
+        {/* Composer */}
         <View
           style={[
             styles.composer,
@@ -79,8 +350,9 @@ export default function App() {
             },
           ]}
         >
+          {/* List toggle */}
           <Pressable
-            onPress={() => setListMode((current) => !current)}
+            onPress={toggleListMode}
             accessibilityRole="button"
             accessibilityLabel={
               listMode ? 'Turn off list mode' : 'Turn on list mode'
@@ -90,23 +362,34 @@ export default function App() {
             <Text
               style={[
                 styles.checkbox,
-                { color: listMode ? colors.primary : colors.secondary },
+                {
+                  color: listMode
+                    ? colors.primary
+                    : colors.secondary,
+                },
               ]}
             >
               {listMode ? '☑' : '□'}
             </Text>
           </Pressable>
 
+          {/* Text input */}
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder={listMode ? 'Add a list item...' : "What's on your mind?"}
+            placeholder={
+              listMode
+                ? 'Add a list item...'
+                : "What's on your mind?"
+            }
             placeholderTextColor={colors.secondary}
             multiline
             textAlignVertical="top"
             returnKeyType={listMode ? 'next' : 'send'}
-            blurOnSubmit={!listMode}
-            onSubmitEditing={sendNote}
+            submitBehavior={
+              listMode ? 'submit' : 'blurAndSubmit'
+            }
+            onSubmitEditing={handleSubmit}
             style={[
               styles.input,
               {
@@ -115,16 +398,20 @@ export default function App() {
             ]}
           />
 
+          {/* Send button */}
           <Pressable
-            onPress={sendNote}
+            onPress={finishNote}
             accessibilityRole="button"
-            accessibilityLabel="Save note"
+            accessibilityLabel={
+              listMode ? 'Finish list' : 'Save note'
+            }
             style={[
               styles.sendButton,
               {
-                backgroundColor: text.trim()
-                  ? colors.primary
-                  : colors.border,
+                backgroundColor:
+                  text.trim() || listItems.length > 0
+                    ? colors.primary
+                    : colors.border,
               },
             ]}
           >
@@ -133,6 +420,50 @@ export default function App() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+export default function App() {
+  /*
+   * Initialize the local SQLite database when the app starts.
+   */
+  React.useEffect(() => {
+    getDatabase()
+      .then(() =>
+        console.log('ScatterTag database initialized')
+      )
+      .catch((error) =>
+        console.error(
+          'Database initialization failed:',
+          error
+        )
+      );
+  }, []);
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Capture"
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen
+          name="Capture"
+          component={CaptureScreen}
+        />
+
+        <Stack.Screen
+          name="Notes"
+          component={NotesScreen}
+        />
+
+        <Stack.Screen
+          name="NoteDetail"
+          component={NoteDetailScreen}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
@@ -149,11 +480,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   title: {
     fontSize: 22,
     fontWeight: '700',
+  },
+
+  notesButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+
+  notesButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   emptyState: {
@@ -180,6 +524,34 @@ const styles = StyleSheet.create({
 
   tip: {
     fontSize: 14,
+  },
+
+  listPreview: {
+    marginTop: 28,
+    alignSelf: 'stretch',
+    maxWidth: 320,
+    gap: 10,
+  },
+
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  previewCheckbox: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+
+  previewText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+
+  completedText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
 
   composer: {
