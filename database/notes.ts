@@ -74,7 +74,9 @@ export async function getNotes() {
   );
 }
 
-export async function getListItems(noteId: number) {
+export async function getListItems(
+  noteId: number
+) {
   const db = await getDatabase();
 
   return db.getAllAsync<{
@@ -92,7 +94,9 @@ export async function getListItems(noteId: number) {
   );
 }
 
-export async function deleteNote(id: number) {
+export async function deleteNote(
+  id: number
+) {
   const db = await getDatabase();
 
   await db.runAsync(
@@ -341,6 +345,39 @@ export async function getNotesByHashtag(
      ORDER BY notes.is_pinned DESC,
               notes.created_at DESC`,
     name
+  );
+}
+
+/*
+ * TEMPORARY DEVELOPMENT RESET
+ *
+ * This removes all development notes,
+ * checklist items, and note/hashtag links.
+ *
+ * Hashtag definitions themselves are also
+ * removed so we start completely clean.
+ */
+export async function resetDevelopmentDatabase() {
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `DELETE FROM note_hashtags`
+  );
+
+  await db.runAsync(
+    `DELETE FROM list_items`
+  );
+
+  await db.runAsync(
+    `DELETE FROM notes`
+  );
+
+  await db.runAsync(
+    `DELETE FROM hashtags`
+  );
+
+  console.log(
+    'Development database reset complete'
   );
 }
 

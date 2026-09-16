@@ -29,6 +29,7 @@ import {
   createNote,
   createList,
   addHashtagsToNote,
+  resetDevelopmentDatabase,
 } from './database/notes';
 
 type ListItem = {
@@ -560,7 +561,6 @@ export default function App() {
         )
       );
   }, []);
-
   return (
     <NavigationContainer>
       <Stack.Navigator

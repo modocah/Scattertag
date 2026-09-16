@@ -4,16 +4,24 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   useColorScheme,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type RootStackParamList = {
   Capture: undefined;
   Notes: undefined;
+  Tags: undefined;
+  TagNotes: {
+    hashtag: string;
+  };
   NoteDetail: {
     noteId: number;
   };
@@ -36,15 +44,18 @@ type ListItem = {
   is_completed: number;
 };
 
-type NoteWithItems = Note & {
-  items?: ListItem[];
-};
-
 export default function NotesScreen() {
   const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList>
+    >();
 
-  const [notes, setNotes] = useState<NoteWithItems[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [listItems, setListItems] = useState<
+    Record<number, ListItem[]>
+  >({});
+  const [searchText, setSearchText] = useState('');
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -66,24 +77,28 @@ export default function NotesScreen() {
 
       const savedNotes = await getNotes();
 
-      const notesWithItems = await Promise.all(
-        savedNotes.map(async (note) => {
-          if (note.type === 'list') {
-            const items = await getListItems(note.id);
+      setNotes(savedNotes);
 
-            return {
-              ...note,
-              items,
-            };
-          }
+      const itemsByNote: Record<
+        number,
+        ListItem[]
+      > = {};
 
-          return note;
-        })
-      );
+      for (const note of savedNotes) {
+        if (note.type === 'list') {
+          const items =
+            await getListItems(note.id);
 
-      setNotes(notesWithItems);
+          itemsByNote[note.id] = items;
+        }
+      }
+
+      setListItems(itemsByNote);
     } catch (error) {
-      console.error('Failed to load notes:', error);
+      console.error(
+        'Failed to load notes:',
+        error
+      );
     }
   }, []);
 
@@ -91,97 +106,249 @@ export default function NotesScreen() {
     useCallback(() => {
       loadNotes();
     }, [loadNotes])
-  );
+  )
 
-  const handleToggleListItem = async (
-    noteId: number,
-    listItem: ListItem
+  const toggleListItem = async (
+    itemId: number,
+    completed: boolean
   ) => {
     try {
-      const { toggleListItem } = await import('../database/notes');
+      const {
+        toggleListItem: saveToggle,
+      } = await import('../database/notes');
 
-      const newCompleted = listItem.is_completed !== 1;
-
-      await toggleListItem(
-        listItem.id,
-        newCompleted
+      await saveToggle(
+        itemId,
+        completed
       );
 
-      setNotes((currentNotes) =>
-        currentNotes.map((note) =>
-          note.id === noteId
-            ? {
-                ...note,
-                items: note.items?.map((currentItem) =>
-                  currentItem.id === listItem.id
-                    ? {
-                        ...currentItem,
-                        is_completed: newCompleted ? 1 : 0,
-                      }
-                    : currentItem
-                ),
-              }
-            : note
-        )
-      );
+      setListItems((current) => {
+        const updated = {
+          ...current,
+        };
+
+        for (const noteId of Object.keys(
+          updated
+        )) {
+          updated[Number(noteId)] =
+            updated[Number(noteId)].map(
+              (item) =>
+                item.id === itemId
+                  ? {
+                      ...item,
+                      is_completed:
+                        completed ? 1 : 0,
+                    }
+                  : item
+            );
+        }
+
+        return updated;
+      });
     } catch (error) {
       console.error(
-        'Failed to toggle list item:',
+        'Failed to update list item:',
         error
       );
     }
   };
 
-  const renderNote = ({
-    item,
-  }: {
-    item: NoteWithItems;
-  }) => {
-    const isList = item.type === 'list';
+  /*
+   * Render normal note text with tappable hashtags.
+   */
+  const renderNoteText = (
+    note: Note
+  ) => {
+    const parts =
+      note.text.split(
+        /(#[A-Za-z0-9_]+)/
+      );
 
     return (
-      <Pressable
-        onPress={() =>
-          navigation.navigate('NoteDetail', {
-            noteId: item.id,
-          })
-        }
+      <Text
         style={[
-          styles.noteCard,
+          styles.noteText,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
+            color: colors.text,
           },
         ]}
       >
+        {parts.map(
+          (part, index) => {
+            if (
+              /^#[A-Za-z0-9_]+$/.test(
+                part
+              )
+            ) {
+              const hashtag =
+                part
+                  .replace(/^#/, '')
+                  .toLowerCase();
+
+              return (
+                <Text
+                  key={`${part}-${index}`}
+                  onPress={() =>
+                    navigation.navigate(
+                      'TagNotes',
+                      {
+                        hashtag,
+                      }
+                    )
+                  }
+                  style={[
+                    styles.hashtag,
+                    {
+                      color:
+                        colors.primary,
+                    },
+                  ]}
+                >
+                  {part}
+                </Text>
+              );
+            }
+
+            return (
+              <Text
+                key={`${part}-${index}`}
+              >
+                {part}
+              </Text>
+            );
+          }
+        )}
+      </Text>
+    );
+  };
+
+  const filteredNotes =
+    notes.filter((note) => {
+      const query =
+        searchText
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return true;
+      }
+
+      return note.text
+        .toLowerCase()
+        .includes(query);
+    });
+
+  const renderNote = ({
+    item,
+  }: {
+    item: Note;
+  }) => {
+    const items =
+      listItems[item.id] ?? [];
+
+    return (
+      <View
+        style={[
+          styles.noteCard,
+          {
+            backgroundColor:
+              colors.surface,
+            borderColor:
+              colors.border,
+          },
+        ]}
+      >
+        {/* Card header */}
         <View style={styles.noteHeader}>
-          {item.is_pinned === 1 && (
+          <View
+            style={styles.noteHeaderLeft}
+          >
+            {item.is_pinned === 1 && (
+              <Text
+                style={[
+                  styles.pin,
+                  {
+                    color:
+                      colors.primary,
+                  },
+                ]}
+              >
+                📌
+              </Text>
+            )}
+
             <Text
               style={[
-                styles.pin,
+                styles.date,
                 {
-                  color: colors.primary,
+                  color:
+                    colors.secondary,
                 },
               ]}
             >
-              📌
+              {new Date(
+                item.created_at
+              ).toLocaleString()}
             </Text>
-          )}
+          </View>
 
-          <Text
-            style={[
-              styles.date,
-              {
-                color: colors.secondary,
-              },
-            ]}
+          <View
+            style={styles.headerRight}
           >
-            {new Date(item.created_at).toLocaleString()}
-          </Text>
+            {item.type === 'list' && (
+              <Text
+                style={[
+                  styles.listLabel,
+                  {
+                    color:
+                      colors.secondary,
+                  },
+                ]}
+              >
+                Checklist
+              </Text>
+            )}
+
+            {/* Edit button */}
+            <Pressable
+              onPress={() =>
+                navigation.navigate(
+                  'NoteDetail',
+                  {
+                    noteId: item.id,
+                  }
+                )
+              }
+              style={[
+                styles.editButton,
+                {
+                  borderColor:
+                    colors.border,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit note"
+            >
+              <Text
+                style={[
+                  styles.editIcon,
+                  {
+                    color:
+                      colors.primary,
+                  },
+                ]}
+              >
+                ✎
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
-        {isList ? (
-          <View>
+        {/* Note content */}
+        {item.type === 'list' ? (
+          <View
+            style={styles.listContainer}
+          >
             <Text
               style={[
                 styles.listTitle,
@@ -190,29 +357,32 @@ export default function NotesScreen() {
                 },
               ]}
             >
-              Checklist
+              {item.text}
             </Text>
 
-            <View style={styles.items}>
-              {item.items?.map((listItem) => (
+            {items.map(
+              (listItem) => (
                 <Pressable
                   key={listItem.id}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    handleToggleListItem(
-                      item.id,
-                      listItem
-                    );
-                  }}
-                  style={styles.listRow}
+                  onPress={() =>
+                    toggleListItem(
+                      listItem.id,
+                      listItem.is_completed ===
+                        0
+                    )
+                  }
+                  style={
+                    styles.listItemRow
+                  }
                 >
                   <Text
                     style={[
-                      styles.listCheckbox,
+                      styles.itemCheckbox,
                       {
-                        color: listItem.is_completed
-                          ? colors.primary
-                          : colors.secondary,
+                        color:
+                          listItem.is_completed
+                            ? colors.primary
+                            : colors.secondary,
                       },
                     ]}
                   >
@@ -223,33 +393,26 @@ export default function NotesScreen() {
 
                   <Text
                     style={[
-                      styles.listItemText,
+                      styles.itemText,
                       {
-                        color: colors.text,
+                        color:
+                          colors.text,
                       },
-                      listItem.is_completed === 1 &&
+                      listItem.is_completed ===
+                        1 &&
                         styles.completedText,
                     ]}
                   >
                     {listItem.text}
                   </Text>
                 </Pressable>
-              ))}
-            </View>
+              )
+            )}
           </View>
         ) : (
-          <Text
-            style={[
-              styles.noteText,
-              {
-                color: colors.text,
-              },
-            ]}
-          >
-            {item.text}
-          </Text>
+          renderNoteText(item)
         )}
-      </Pressable>
+      </View>
     );
   };
 
@@ -258,14 +421,16 @@ export default function NotesScreen() {
       style={[
         styles.container,
         {
-          backgroundColor: colors.background,
+          backgroundColor:
+            colors.background,
         },
       ]}
     >
+      {/* Header */}
       <View style={styles.header}>
         <Pressable
           onPress={() =>
-            navigation.navigate('Capture')
+            navigation.goBack()
           }
           style={styles.backButton}
         >
@@ -273,7 +438,8 @@ export default function NotesScreen() {
             style={[
               styles.backText,
               {
-                color: colors.primary,
+                color:
+                  colors.primary,
               },
             ]}
           >
@@ -293,7 +459,73 @@ export default function NotesScreen() {
         </Text>
       </View>
 
-      {notes.length === 0 ? (
+      {/* Search */}
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor:
+              colors.surface,
+            borderColor:
+              colors.border,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.searchIcon,
+            {
+              color:
+                colors.secondary,
+            },
+          ]}
+        >
+          🔍
+        </Text>
+
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Search notes..."
+          placeholderTextColor={
+            colors.secondary
+          }
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[
+            styles.searchInput,
+            {
+              color: colors.text,
+            },
+          ]}
+        />
+
+        {searchText.length > 0 && (
+          <Pressable
+            onPress={() =>
+              setSearchText('')
+            }
+            style={styles.clearButton}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <Text
+              style={[
+                styles.clearText,
+                {
+                  color:
+                    colors.secondary,
+                },
+              ]}
+            >
+              ×
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Notes */}
+      {filteredNotes.length === 0 ? (
         <View style={styles.emptyState}>
           <Text
             style={[
@@ -303,28 +535,36 @@ export default function NotesScreen() {
               },
             ]}
           >
-            No notes yet
+            {searchText.trim()
+              ? 'No matching notes'
+              : 'No notes yet'}
           </Text>
 
           <Text
             style={[
               styles.emptyText,
               {
-                color: colors.secondary,
+                color:
+                  colors.secondary,
               },
             ]}
           >
-            Capture a thought and it will show up here.
+            {searchText.trim()
+              ? 'Try a different search.'
+              : 'Your saved thoughts will appear here.'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={notes}
+          data={filteredNotes}
           keyExtractor={(item) =>
             item.id.toString()
           }
           renderItem={renderNote}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={
+            styles.list
+          }
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </SafeAreaView>
@@ -339,14 +579,14 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
 
   backButton: {
     alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingRight: 16,
-    marginBottom: 8,
+    marginBottom: 4,
   },
 
   backText: {
@@ -357,6 +597,41 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
+  },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderRadius: 16,
+    minHeight: 50,
+    paddingHorizontal: 12,
+  },
+
+  searchIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 10,
+  },
+
+  clearButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  clearText: {
+    fontSize: 26,
+    lineHeight: 28,
   },
 
   list: {
@@ -373,7 +648,20 @@ const styles = StyleSheet.create({
   noteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
+  },
+
+  noteHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 
   pin: {
@@ -385,40 +673,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  listLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  editButton: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  editIcon: {
+    fontSize: 19,
+    fontWeight: '600',
+  },
+
   noteText: {
     fontSize: 17,
     lineHeight: 24,
   },
 
-  listTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 10,
+  hashtag: {
+    fontWeight: '600',
   },
 
-  items: {
+  listContainer: {
     gap: 8,
   },
 
-  listRow: {
+  listTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+
+  listItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 3,
   },
 
-  listCheckbox: {
+  itemCheckbox: {
     fontSize: 20,
-    width: 28,
+    marginRight: 8,
   },
 
-  listItemText: {
+  itemText: {
     flex: 1,
     fontSize: 16,
-    lineHeight: 23,
+    lineHeight: 22,
   },
 
   completedText: {
-    textDecorationLine: 'line-through',
+    textDecorationLine:
+      'line-through',
     opacity: 0.6,
   },
 
@@ -430,7 +741,7 @@ const styles = StyleSheet.create({
   },
 
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     marginBottom: 8,
   },

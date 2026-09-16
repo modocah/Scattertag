@@ -27,7 +27,7 @@ type RootStackParamList = {
 };
 
 type Hashtag = {
-  id: number;
+  id: string;
   name: string;
   note_count: number;
 };
