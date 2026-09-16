@@ -14,17 +14,19 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTheme } from '../context/ThemeContext';
 
 type RootStackParamList = {
   Capture: undefined;
   Notes: undefined;
+  NoteDetail: {
+    noteId: number;
+  };
   Tags: undefined;
   TagNotes: {
     hashtag: string;
   };
-  NoteDetail: {
-    noteId: number;
-  };
+  Settings: undefined;
 };
 
 type Note = {
@@ -56,17 +58,9 @@ export default function NotesScreen() {
   >({});
   const [searchText, setSearchText] = useState('');
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const colors = {
-    background: isDark ? '#111114' : '#F7F7FA',
-    surface: isDark ? '#1B1B20' : '#FFFFFF',
-    text: isDark ? '#F5F5F7' : '#202124',
-    secondary: isDark ? '#A1A1AA' : '#6B7280',
-    border: isDark ? '#303038' : '#E5E7EB',
-    primary: isDark ? '#8B83FF' : '#6C63FF',
-  };
+    const {
+    colors,
+  } = useTheme();
 
   const loadNotes = useCallback(async () => {
     try {
@@ -427,7 +421,14 @@ export default function NotesScreen() {
       ]}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            justifyContent: 'space-between',
+          },
+        ]}
+      >
         <Pressable
           onPress={() =>
             navigation.goBack()
@@ -438,8 +439,7 @@ export default function NotesScreen() {
             style={[
               styles.backText,
               {
-                color:
-                  colors.primary,
+                color: colors.primary,
               },
             ]}
           >
@@ -447,16 +447,7 @@ export default function NotesScreen() {
           </Text>
         </Pressable>
 
-        <Text
-          style={[
-            styles.title,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          Notes
-        </Text>
+      
       </View>
 
       {/* Search */}
@@ -750,4 +741,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
+
+
 });

@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,14 +26,18 @@ import NotesScreen from './screens/NotesScreen';
 import NoteDetailScreen from './screens/NoteDetailScreen';
 import TagsScreen from './screens/TagsScreen';
 import TagNotesScreen from './screens/TagNotesScreen';
-
+import SettingsScreen from './screens/SettingsScreen';
+import {
+  ThemeProvider,
+  useTheme,
+} from './context/ThemeContext';
 import { getDatabase } from './database/database';
 import {
   createNote,
   createList,
   addHashtagsToNote,
-  resetDevelopmentDatabase,
 } from './database/notes';
+
 
 type ListItem = {
   id: number;
@@ -41,13 +48,14 @@ type ListItem = {
 type RootStackParamList = {
   Capture: undefined;
   Notes: undefined;
+  NoteDetail: {
+    noteId: number;
+  };
   Tags: undefined;
   TagNotes: {
     hashtag: string;
   };
-  NoteDetail: {
-    noteId: number;
-  };
+  Settings: undefined;
 };
 
 const Stack =
@@ -64,18 +72,13 @@ function CaptureScreen() {
   const [listItems, setListItems] =
     useState<ListItem[]>([]);
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const {
+    isDark,
+    colors,
+  } = useTheme();
 
-  const colors = {
-    background: isDark ? '#111114' : '#F7F7FA',
-    surface: isDark ? '#1B1B20' : '#FFFFFF',
-    text: isDark ? '#F5F5F7' : '#202124',
-    secondary: isDark ? '#A1A1AA' : '#6B7280',
-    border: isDark ? '#303038' : '#E5E7EB',
-    primary: isDark ? '#8B83FF' : '#6C63FF',
-  };
-
+  
+  
   const finishNote = async () => {
     /*
      * Finish a list.
@@ -129,16 +132,11 @@ function CaptureScreen() {
     }
 
     /*
-     * /pin shortcut
-     *
-     * Works anywhere in the note.
-     * Example:
-     * Call dentist tomorrow /pin
-     * /pin Call dentist tomorrow
-     * Call /pin dentist tomorrow
+     * /pin shortcut.
      */
     const pinCommand = /\/pin\b/i;
-    const isPinned = pinCommand.test(noteText);
+    const isPinned =
+      pinCommand.test(noteText);
 
     const cleanedText = noteText
       .replace(pinCommand, '')
@@ -155,27 +153,17 @@ function CaptureScreen() {
       );
 
       /*
-       * Extract hashtags from the cleaned note.
+       * Extract hashtags.
        */
       const hashtags =
         cleanedText.match(
           /#[A-Za-z0-9_]+/g
         ) ?? [];
 
-      /*
-       * Save hashtag relationships.
-       */
       await addHashtagsToNote(
         noteId,
         hashtags
       );
-
-      /*
-       * TEMPORARY DIAGNOSTIC
-       *
-       * This lets us see exactly what is happening
-       * with the hashtag tables after saving.
-       */
 
       setText('');
     } catch (error) {
@@ -187,19 +175,12 @@ function CaptureScreen() {
   };
 
   const toggleListMode = () => {
-    /*
-     * Turn list mode off.
-     */
     if (listMode) {
       setListMode(false);
       setListItems([]);
       return;
     }
 
-    /*
-     * If the user already typed something,
-     * preserve it as the first list item.
-     */
     const currentText = text.trim();
 
     if (currentText) {
@@ -218,19 +199,11 @@ function CaptureScreen() {
   };
 
   const handleSubmit = () => {
-    /*
-     * Normal mode:
-     * Enter saves the note.
-     */
     if (!listMode) {
       finishNote();
       return;
     }
 
-    /*
-     * List mode:
-     * Enter creates the next list item.
-     */
     const item = text.trim();
 
     if (!item) {
@@ -249,13 +222,16 @@ function CaptureScreen() {
     setText('');
   };
 
-  const toggleListItem = (id: number) => {
+  const toggleListItem = (
+    id: number
+  ) => {
     setListItems((current) =>
       current.map((item) =>
         item.id === id
           ? {
               ...item,
-              completed: !item.completed,
+              completed:
+                !item.completed,
             }
           : item
       )
@@ -293,18 +269,25 @@ function CaptureScreen() {
             ScatterTag
           </Text>
 
-          <View style={styles.headerButtons}>
+          <View
+            style={styles.headerButtons}
+          >
             <Pressable
               onPress={() =>
-                navigation.navigate('Notes')
+                navigation.navigate(
+                  'Notes'
+                )
               }
-              style={styles.headerButton}
+              style={
+                styles.headerButton
+              }
             >
               <Text
                 style={[
                   styles.headerButtonText,
                   {
-                    color: colors.primary,
+                    color:
+                      colors.primary,
                   },
                 ]}
               >
@@ -314,26 +297,55 @@ function CaptureScreen() {
 
             <Pressable
               onPress={() =>
-                navigation.navigate('Tags')
+                navigation.navigate(
+                  'Tags'
+                )
               }
-              style={styles.headerButton}
+              style={
+                styles.headerButton
+              }
             >
               <Text
                 style={[
                   styles.headerButtonText,
                   {
-                    color: colors.primary,
+                    color:
+                      colors.primary,
                   },
                 ]}
               >
                 Tags
               </Text>
             </Pressable>
+            <Pressable
+              onPress={() =>
+                navigation.navigate(
+                  'Settings'
+                )
+              }
+              style={
+                styles.headerButton
+              }
+            >
+              <Text
+                style={[
+                  styles.headerButtonText,
+                  {
+                    color:
+                      colors.primary,
+                  },
+                ]}
+              >
+                ⚙️
+              </Text>
+            </Pressable>
           </View>
         </View>
 
         {/* Main content */}
-        <View style={styles.emptyState}>
+        <View
+          style={styles.emptyState}
+        >
           <Text
             style={[
               styles.emptyTitle,
@@ -351,7 +363,8 @@ function CaptureScreen() {
             style={[
               styles.emptyText,
               {
-                color: colors.secondary,
+                color:
+                  colors.secondary,
               },
             ]}
           >
@@ -360,14 +373,16 @@ function CaptureScreen() {
               : 'Just type it. Organize it later.'}
           </Text>
 
-          {/* Normal-mode tips */}
           {!listMode && (
-            <View style={styles.tips}>
+            <View
+              style={styles.tips}
+            >
               <Text
                 style={[
                   styles.tip,
                   {
-                    color: colors.secondary,
+                    color:
+                      colors.secondary,
                   },
                 ]}
               >
@@ -378,7 +393,8 @@ function CaptureScreen() {
                 style={[
                   styles.tip,
                   {
-                    color: colors.secondary,
+                    color:
+                      colors.secondary,
                   },
                 ]}
               >
@@ -389,7 +405,8 @@ function CaptureScreen() {
                 style={[
                   styles.tip,
                   {
-                    color: colors.secondary,
+                    color:
+                      colors.secondary,
                   },
                 ]}
               >
@@ -398,48 +415,56 @@ function CaptureScreen() {
             </View>
           )}
 
-          {/* Temporary list preview */}
           {listMode &&
             listItems.length > 0 && (
-              <View style={styles.listPreview}>
-                {listItems.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    onPress={() =>
-                      toggleListItem(item.id)
-                    }
-                    style={styles.previewRow}
-                  >
-                    <Text
-                      style={[
-                        styles.previewCheckbox,
-                        {
-                          color:
-                            item.completed
-                              ? colors.primary
-                              : colors.secondary,
-                        },
-                      ]}
+              <View
+                style={styles.listPreview}
+              >
+                {listItems.map(
+                  (item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() =>
+                        toggleListItem(
+                          item.id
+                        )
+                      }
+                      style={
+                        styles.previewRow
+                      }
                     >
-                      {item.completed
-                        ? '☑'
-                        : '□'}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.previewCheckbox,
+                          {
+                            color:
+                              item.completed
+                                ? colors.primary
+                                : colors.secondary,
+                          },
+                        ]}
+                      >
+                        {item.completed
+                          ? '☑'
+                          : '□'}
+                      </Text>
 
-                    <Text
-                      style={[
-                        styles.previewText,
-                        {
-                          color: colors.text,
-                        },
-                        item.completed &&
-                          styles.completedText,
-                      ]}
-                    >
-                      {item.text}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <Text
+                        style={[
+                          styles.previewText,
+                          {
+                            color:
+                              colors.text,
+                          },
+                          item.completed &&
+                            styles.completedText,
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                    </Pressable>
+                  )
+                )}
               </View>
             )}
         </View>
@@ -456,16 +481,19 @@ function CaptureScreen() {
             },
           ]}
         >
-          {/* List toggle */}
           <Pressable
-            onPress={toggleListMode}
+            onPress={
+              toggleListMode
+            }
             accessibilityRole="button"
             accessibilityLabel={
               listMode
                 ? 'Turn off list mode'
                 : 'Turn on list mode'
             }
-            style={styles.listButton}
+            style={
+              styles.listButton
+            }
           >
             <Text
               style={[
@@ -477,11 +505,12 @@ function CaptureScreen() {
                 },
               ]}
             >
-              {listMode ? '☑' : '□'}
+              {listMode
+                ? '☑'
+                : '□'}
             </Text>
           </Pressable>
 
-          {/* Text input */}
           <TextInput
             value={text}
             onChangeText={setText}
@@ -496,14 +525,18 @@ function CaptureScreen() {
             multiline
             textAlignVertical="top"
             returnKeyType={
-              listMode ? 'next' : 'send'
+              listMode
+                ? 'next'
+                : 'send'
             }
             submitBehavior={
               listMode
                 ? 'submit'
                 : 'blurAndSubmit'
             }
-            onSubmitEditing={handleSubmit}
+            onSubmitEditing={
+              handleSubmit
+            }
             style={[
               styles.input,
               {
@@ -512,7 +545,6 @@ function CaptureScreen() {
             ]}
           />
 
-          {/* Send button */}
           <Pressable
             onPress={finishNote}
             accessibilityRole="button"
@@ -532,7 +564,9 @@ function CaptureScreen() {
               },
             ]}
           >
-            <Text style={styles.sendArrow}>
+            <Text
+              style={styles.sendArrow}
+            >
               ➤
             </Text>
           </Pressable>
@@ -543,10 +577,6 @@ function CaptureScreen() {
 }
 
 export default function App() {
-  /*
-   * Initialize the local SQLite database
-   * when the app starts.
-   */
   React.useEffect(() => {
     getDatabase()
       .then(() =>
@@ -561,40 +591,57 @@ export default function App() {
         )
       );
   }, []);
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Capture"
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen
-          name="Capture"
-          component={CaptureScreen}
-        />
+    <ThemeProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Capture"
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen
+            name="Capture"
+            component={
+              CaptureScreen
+            }
+          />
 
-        <Stack.Screen
-          name="Notes"
-          component={NotesScreen}
-        />
+          <Stack.Screen
+            name="Notes"
+            component={NotesScreen}
+            
+          />
 
-        <Stack.Screen
-          name="NoteDetail"
-          component={NoteDetailScreen}
-        />
+          <Stack.Screen
+            name="NoteDetail"
+            component={
+              NoteDetailScreen
+            }
+          />
 
-        <Stack.Screen
-          name="Tags"
-          component={TagsScreen}
-        />
+          <Stack.Screen
+            name="Tags"
+            component={
+              TagsScreen
+            }
+          />
 
-        <Stack.Screen
-          name="TagNotes"
-          component={TagNotesScreen}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+          <Stack.Screen
+            name="TagNotes"
+            component={
+              TagNotesScreen
+            }
+          />
+
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
 
@@ -613,7 +660,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
   },
 
   title: {
@@ -687,7 +735,8 @@ const styles = StyleSheet.create({
   },
 
   completedText: {
-    textDecorationLine: 'line-through',
+    textDecorationLine:
+      'line-through',
     opacity: 0.6,
   },
 

@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +14,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 type RootStackParamList = {
   Capture: undefined;
@@ -50,17 +50,9 @@ export default function TagNotesScreen() {
 
   const [notes, setNotes] = useState<Note[]>([]);
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const colors = {
-    background: isDark ? '#111114' : '#F7F7FA',
-    surface: isDark ? '#1B1B20' : '#FFFFFF',
-    text: isDark ? '#F5F5F7' : '#202124',
-    secondary: isDark ? '#A1A1AA' : '#6B7280',
-    border: isDark ? '#303038' : '#E5E7EB',
-    primary: isDark ? '#8B83FF' : '#6C63FF',
-  };
+  const {
+    colors,
+  } = useTheme();
 
   const loadNotes = useCallback(async () => {
     try {
