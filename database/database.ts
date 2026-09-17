@@ -1,11 +1,17 @@
 import * as SQLite from 'expo-sqlite';
 
+let database: SQLite.SQLiteDatabase | null = null;
+
 export async function getDatabase() {
-  const db = await SQLite.openDatabaseAsync(
+  if (database) {
+    return database;
+  }
+
+  database = await SQLite.openDatabaseAsync(
     'scattertag.db'
   );
 
-  await db.runAsync(`
+  await database.runAsync(`
     CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       text TEXT NOT NULL,
@@ -16,7 +22,7 @@ export async function getDatabase() {
     )
   `);
 
-  await db.runAsync(`
+  await database.runAsync(`
     CREATE TABLE IF NOT EXISTS list_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       note_id INTEGER NOT NULL,
@@ -27,5 +33,5 @@ export async function getDatabase() {
     )
   `);
 
-  return db;
+  return database;
 }
