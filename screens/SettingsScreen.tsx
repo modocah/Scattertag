@@ -391,6 +391,31 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            About ScatterTag
+          </Text>
+
+          <View style={styles.card}>
+            <View style={styles.aboutContent}>
+              <Text style={styles.aboutName}>
+                ScatterTag
+              </Text>
+
+              <Text style={styles.aboutVersion}>
+                Version 1.0.0
+              </Text>
+
+              <Text style={styles.aboutDeveloper}>
+                Developed by DeDoom Studio
+              </Text>
+
+              <Text style={styles.aboutDescription}>
+                Your notes stay on your device.
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -513,6 +538,34 @@ function createStyles(
     backText: {
       fontSize: 15,
       fontWeight: '600',
+    },
+
+        aboutContent: {
+      padding: 16,
+    },
+
+    aboutName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+
+    aboutVersion: {
+      fontSize: 13,
+      color: colors.secondary,
+      marginBottom: 12,
+    },
+
+    aboutDeveloper: {
+      fontSize: 14,
+      color: colors.text,
+      marginBottom: 6,
+    },
+
+    aboutDescription: {
+      fontSize: 14,
+      color: colors.secondary,
     },
   });
 }
