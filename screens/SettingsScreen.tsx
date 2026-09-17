@@ -28,7 +28,11 @@ import type {
 
 import {
   exportNotes,
+  importNotes,
+  resetDevelopmentDatabase,
 } from '../database/notes';
+
+import * as DocumentPicker from 'expo-document-picker';
 
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -131,6 +135,80 @@ export default function SettingsScreen() {
       );
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const result =
+        await DocumentPicker.getDocumentAsync({
+          type: 'application/json',
+          copyToCacheDirectory: true,
+        });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const fileUri =
+        result.assets[0].uri;
+
+      const response =
+        await fetch(fileUri);
+
+      const json =
+        await response.json();
+
+      if (
+        json?.app !== 'ScatterTag' ||
+        json?.version !== 1 ||
+        !Array.isArray(json?.notes)
+      ) {
+        throw new Error(
+          'Invalid ScatterTag export file.'
+        );
+      }
+
+      const importedCount =
+        await importNotes(json);
+
+      alert(
+        importedCount === 0
+          ? 'No new notes were imported.'
+          : `Imported ${importedCount} ${
+              importedCount === 1
+                ? 'note'
+                : 'notes'
+            } successfully.`
+      );
+    } catch (error) {
+      console.error(
+        'Failed to import data:',
+        error
+      );
+
+      alert(
+        'Unable to import this file. Please make sure it is a valid ScatterTag JSON export.'
+      );
+    }
+  };
+
+  const handleResetDevelopmentData = async () => {
+    try {
+      await resetDevelopmentDatabase();
+
+      alert(
+        'Development data has been cleared.'
+      );
+    } catch (error) {
+      console.error(
+        'Failed to reset development data:',
+        error
+      );
+
+      alert(
+        'Failed to clear development data.'
+      );
     }
   };
 
@@ -278,6 +356,36 @@ export default function SettingsScreen() {
                   }
                 >
                   Save your notes and checklists as a JSON file
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={handleImport}
+              style={styles.dataOption}
+            >
+              <View style={styles.optionText}>
+                <Text style={styles.optionLabel}>
+                  Import Data
+                </Text>
+
+                <Text style={styles.description}>
+                  Restore notes and checklists from a JSON file
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              onPress={handleResetDevelopmentData}
+              style={styles.dataOption}
+            >
+              <View style={styles.optionText}>
+                <Text style={styles.optionLabel}>
+                  Reset Development Data
+                </Text>
+
+                <Text style={styles.description}>
+                  Delete all notes, checklists, and hashtags
                 </Text>
               </View>
             </Pressable>

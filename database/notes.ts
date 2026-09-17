@@ -1,5 +1,11 @@
 import { getDatabase } from './database';
 
+function createImportId() {
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 10)}`;
+}
+
 export async function createNote(
   text: string,
   isPinned = false
@@ -9,12 +15,13 @@ export async function createNote(
 
   const result = await db.runAsync(
     `INSERT INTO notes
-      (text, created_at, updated_at, is_pinned, type)
-     VALUES (?, ?, ?, ?, 'note')`,
+      (text, created_at, updated_at, is_pinned, type, import_id)
+     VALUES (?, ?, ?, ?, 'note', ?)`,
     text,
     now,
     now,
-    isPinned ? 1 : 0
+    isPinned ? 1 : 0,
+    createImportId()
   );
 
   return result.lastInsertRowId;
@@ -31,11 +38,12 @@ export async function createList(
 
   const result = await db.runAsync(
     `INSERT INTO notes
-      (text, created_at, updated_at, is_pinned, type)
-     VALUES (?, ?, ?, 0, 'list')`,
+      (text, created_at, updated_at, is_pinned, type, import_id)
+     VALUES (?, ?, ?, 0, 'list', ?)`,
     'Checklist',
     now,
-    now
+    now,
+    createImportId()
   );
 
   const noteId = result.lastInsertRowId;
@@ -67,10 +75,18 @@ export async function getNotes() {
     updated_at: string;
     is_pinned: number;
     type: string;
+    import_id: string | null;
   }>(
-    `SELECT *
-     FROM notes
-     ORDER BY is_pinned DESC, created_at DESC`
+    `SELECT
+      id,
+      text,
+      created_at,
+      updated_at,
+      is_pinned,
+      type,
+      import_id
+    FROM notes
+    ORDER BY is_pinned DESC, created_at DESC`
   );
 }
 
@@ -368,6 +384,7 @@ export async function exportNotes() {
       updatedAt: note.updated_at,
       isPinned: note.is_pinned === 1,
       type: note.type,
+      importId: note.import_id,
       hashtags: hashtags.map(
         (tag) => tag.name
       ),
@@ -465,3 +482,120 @@ export async function debugHashtagSchema() {
     links
   );
 }
+
+  export async function importNotes(
+    data: {
+      notes?: {
+        text: string;
+        createdAt: string;
+        updatedAt?: string;
+        isPinned?: boolean;
+        type?: string;
+        importId?: string;
+        hashtags?: string[];
+        items?: {
+          text?: string;
+          position?: number;
+          completed?: boolean;
+        }[];
+      }[];
+    }
+  ) {
+    const db = await getDatabase();
+    let importedCount = 0;
+
+    if (!Array.isArray(data.notes)) {
+      throw new Error(
+        'Invalid ScatterTag export file.'
+      );
+    }
+
+    for (const note of data.notes) {
+      if (
+        typeof note.text !== 'string' ||
+        typeof note.createdAt !== 'string'
+      ) {
+        continue;
+      }
+
+      if (note.importId) {
+        const existingNote =
+          await db.getFirstAsync<{
+            id: number;
+          }>(
+            `SELECT id
+            FROM notes
+            WHERE import_id = ?`,
+            note.importId
+          );
+
+        if (existingNote) {
+          continue;
+        }
+      }
+
+      const type =
+        note.type === 'list'
+          ? 'list'
+          : 'note';
+
+      const result = await db.runAsync(
+        `INSERT INTO notes
+          (text, created_at, updated_at, is_pinned, type, import_id)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        note.text,
+        note.createdAt,
+        note.updatedAt ?? note.createdAt,
+        note.isPinned ? 1 : 0,
+        type,
+        note.importId ?? createImportId()
+      );
+
+      const noteId =
+        result.lastInsertRowId;
+
+      if (
+        type === 'list' &&
+        Array.isArray(note.items)
+      ) {
+        for (
+          let i = 0;
+          i < note.items.length;
+          i++
+        ) {
+          const item = note.items[i];
+
+          if (
+            !item ||
+            typeof item.text !== 'string'
+          ) {
+            continue;
+          }
+
+          await db.runAsync(
+            `INSERT INTO list_items
+              (note_id, text, position, is_completed)
+            VALUES (?, ?, ?, ?)`,
+            noteId,
+            item.text,
+            typeof item.position === 'number'
+              ? item.position
+              : i,
+            item.completed ? 1 : 0
+          );
+        }
+      }
+
+      if (Array.isArray(note.hashtags)) {
+        await addHashtagsToNote(
+          noteId,
+          note.hashtags
+        );
+      }
+
+      importedCount++;
+    }
+
+    return importedCount;
+  }
+
