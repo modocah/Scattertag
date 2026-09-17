@@ -56,20 +56,25 @@ export default function NotesScreen() {
   const [listItems, setListItems] = useState<
     Record<number, ListItem[]>
   >({});
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] =
+    useState('');
+
+  const [searchableText, setSearchableText] =
+    useState<Record<number, string>>({});
 
     const {
     colors,
   } = useTheme();
 
-  const loadNotes = useCallback(async () => {
+    const loadNotes = useCallback(async () => {
     try {
       const {
         getNotes,
         getListItems,
       } = await import('../database/notes');
 
-      const savedNotes = await getNotes();
+      const savedNotes =
+        await getNotes();
 
       setNotes(savedNotes);
 
@@ -88,6 +93,28 @@ export default function NotesScreen() {
       }
 
       setListItems(itemsByNote);
+
+      const searchableByNote: Record<
+        number,
+        string
+      > = {};
+
+      for (const note of savedNotes) {
+        const items =
+          itemsByNote[note.id] ?? [];
+
+        const itemText = items
+          .map((item) => item.text)
+          .join(' ');
+
+        searchableByNote[note.id] =
+          `${note.text} ${itemText}`
+            .toLowerCase();
+      }
+
+      setSearchableText(
+        searchableByNote
+      );
     } catch (error) {
       console.error(
         'Failed to load notes:',
@@ -298,9 +325,10 @@ export default function NotesScreen() {
         return true;
       }
 
-      return note.text
-        .toLowerCase()
-        .includes(query);
+      return (
+        searchableText[note.id]
+          ?.includes(query) ?? false
+      );
     });
 
   const renderNote = ({
