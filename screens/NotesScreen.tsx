@@ -216,6 +216,77 @@ export default function NotesScreen() {
     );
   };
 
+    /*
+   * Render checklist item text with tappable hashtags.
+   */
+  const renderChecklistItemText = (
+    listItem: ListItem
+  ) => {
+    const parts =
+      listItem.text.split(
+        /(#[A-Za-z0-9_]+)/
+      );
+
+    return (
+      <Text
+        style={[
+          styles.itemText,
+          {
+            color: colors.text,
+          },
+          listItem.is_completed === 1 &&
+            styles.completedText,
+        ]}
+      >
+        {parts.map(
+          (part, index) => {
+            if (
+              /^#[A-Za-z0-9_]+$/.test(
+                part
+              )
+            ) {
+              const hashtag =
+                part
+                  .replace(/^#/, '')
+                  .toLowerCase();
+
+              return (
+                <Text
+                  key={`${part}-${index}`}
+                  onPress={() =>
+                    navigation.navigate(
+                      'TagNotes',
+                      {
+                        hashtag,
+                      }
+                    )
+                  }
+                  style={[
+                    styles.hashtag,
+                    {
+                      color:
+                        colors.primary,
+                    },
+                  ]}
+                >
+                  {part}
+                </Text>
+              );
+            }
+
+            return (
+              <Text
+                key={`${part}-${index}`}
+              >
+                {part}
+              </Text>
+            );
+          }
+        )}
+      </Text>
+    );
+  };
+
   const filteredNotes =
     notes.filter((note) => {
       const query =
@@ -356,50 +427,47 @@ export default function NotesScreen() {
 
             {items.map(
               (listItem) => (
-                <Pressable
+                <View
                   key={listItem.id}
-                  onPress={() =>
-                    toggleListItem(
-                      listItem.id,
-                      listItem.is_completed ===
-                        0
-                    )
-                  }
                   style={
                     styles.listItemRow
                   }
                 >
-                  <Text
-                    style={[
-                      styles.itemCheckbox,
-                      {
-                        color:
-                          listItem.is_completed
-                            ? colors.primary
-                            : colors.secondary,
-                      },
-                    ]}
+                  <Pressable
+                    onPress={() =>
+                      toggleListItem(
+                        listItem.id,
+                        listItem.is_completed ===
+                          0
+                      )
+                    }
+                    accessibilityRole="checkbox"
+                    accessibilityState={{
+                      checked:
+                        listItem.is_completed === 1,
+                    }}
                   >
-                    {listItem.is_completed
-                      ? '☑'
-                      : '□'}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.itemCheckbox,
+                        {
+                          color:
+                            listItem.is_completed
+                              ? colors.primary
+                              : colors.secondary,
+                        },
+                      ]}
+                    >
+                      {listItem.is_completed
+                        ? '☑'
+                        : '□'}
+                    </Text>
+                  </Pressable>
 
-                  <Text
-                    style={[
-                      styles.itemText,
-                      {
-                        color:
-                          colors.text,
-                      },
-                      listItem.is_completed ===
-                        1 &&
-                        styles.completedText,
-                    ]}
-                  >
-                    {listItem.text}
-                  </Text>
-                </Pressable>
+                  {renderChecklistItemText(
+                    listItem
+                  )}
+                </View>
               )
             )}
           </View>

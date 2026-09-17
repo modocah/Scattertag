@@ -36,6 +36,7 @@ import {
   createNote,
   createList,
   addHashtagsToNote,
+  getHashtags,
 } from './database/notes';
 
 
@@ -72,15 +73,62 @@ function CaptureScreen() {
   const [listItems, setListItems] =
     useState<ListItem[]>([]);
 
+  const [existingTags, setExistingTags] =
+    useState<string[]>([]);
+
   const {
     isDark,
     colors,
   } = useTheme();
 
-  
+  useEffect(() => {
+    getHashtags()
+      .then((tags) => {
+        setExistingTags(
+          tags.map((tag) => tag.name)
+        );
+      })
+      .catch((error) => {
+        console.error(
+          'Failed to load hashtags:',
+          error
+        );
+      });
+  }, []);
+
+  const refreshTags = async () => {
+    try {
+      const tags = await getHashtags();
+
+      setExistingTags(
+        tags.map((tag) => tag.name)
+      );
+    } catch (error) {
+      console.error(
+        'Failed to refresh hashtags:',
+        error
+      );
+    }
+  };
+
+  const hashtagMatch =
+    text.match(/(?:^|\s)#([A-Za-z0-9_]*)$/);
+
+  const hashtagQuery =
+    hashtagMatch?.[1]?.toLowerCase() ?? '';
+
+  const hashtagSuggestions =
+    hashtagMatch
+      ? existingTags
+          .filter((tag) =>
+            tag.startsWith(hashtagQuery)
+          )
+          .slice(0, 5)
+      : []; 
+    
   
   const finishNote = async () => {
-    /*
+       /*
      * Finish a list.
      */
     if (listMode) {
@@ -102,16 +150,30 @@ function CaptureScreen() {
       }
 
       try {
-        await createList(
+        const noteId = await createList(
           finalItems.map((item) => ({
             text: item.text,
             completed: item.completed,
           }))
         );
 
+        const hashtags = finalItems.flatMap(
+          (item) =>
+            item.text.match(
+              /#[A-Za-z0-9_]+/g
+            ) ?? []
+        );
+
+        await addHashtagsToNote(
+          noteId,
+          hashtags
+        );
+
         setText('');
         setListItems([]);
         setListMode(false);
+
+        await refreshTags();
       } catch (error) {
         console.error(
           'Failed to save list:',
@@ -164,6 +226,8 @@ function CaptureScreen() {
         noteId,
         hashtags
       );
+
+      await refreshTags();
 
       setText('');
     } catch (error) {
@@ -470,106 +534,163 @@ function CaptureScreen() {
         </View>
 
         {/* Composer */}
-        <View
-          style={[
-            styles.composer,
-            {
-              backgroundColor:
-                colors.surface,
-              borderColor:
-                colors.border,
-            },
-          ]}
-        >
-          <Pressable
-            onPress={
-              toggleListMode
-            }
-            accessibilityRole="button"
-            accessibilityLabel={
-              listMode
-                ? 'Turn off list mode'
-                : 'Turn on list mode'
-            }
-            style={
-              styles.listButton
-            }
-          >
-            <Text
+        <View>
+          {hashtagSuggestions.length > 0 && (
+            <View
               style={[
-                styles.checkbox,
+                styles.tagSuggestions,
                 {
-                  color: listMode
-                    ? colors.primary
-                    : colors.secondary,
+                  backgroundColor:
+                    colors.surface,
+                  borderColor:
+                    colors.border,
                 },
               ]}
             >
-              {listMode
-                ? '☑'
-                : '□'}
-            </Text>
-          </Pressable>
+              {hashtagSuggestions.map(
+                (tag) => (
+                  <Pressable
+                    key={tag}
+                    onPress={() => {
+                      if (!hashtagMatch) {
+                        return;
+                      }
 
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={
-              listMode
-                ? 'Add a list item...'
-                : "What's on your mind?"
-            }
-            placeholderTextColor={
-              colors.secondary
-            }
-            multiline
-            textAlignVertical="top"
-            returnKeyType={
-              listMode
-                ? 'next'
-                : 'send'
-            }
-            submitBehavior={
-              listMode
-                ? 'submit'
-                : 'blurAndSubmit'
-            }
-            onSubmitEditing={
-              handleSubmit
-            }
-            style={[
-              styles.input,
-              {
-                color: colors.text,
-              },
-            ]}
-          />
+                      const prefix =
+                        text.slice(
+                          0,
+                          hashtagMatch.index
+                        );
 
-          <Pressable
-            onPress={finishNote}
-            accessibilityRole="button"
-            accessibilityLabel={
-              listMode
-                ? 'Finish list'
-                : 'Save note'
-            }
+                      const completedText =
+                        `${prefix}#${tag} `;
+
+                      setText(
+                        completedText
+                      );
+                    }}
+                    style={
+                      styles.tagSuggestion
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.tagSuggestionText,
+                        {
+                          color:
+                            colors.primary,
+                        },
+                      ]}
+                    >
+                      #{tag}
+                    </Text>
+                  </Pressable>
+                )
+              )}
+            </View>
+          )}
+
+          <View
             style={[
-              styles.sendButton,
+              styles.composer,
               {
                 backgroundColor:
-                  text.trim() ||
-                  listItems.length > 0
-                    ? colors.primary
-                    : colors.border,
+                  colors.surface,
+                borderColor:
+                  colors.border,
               },
             ]}
           >
-            <Text
-              style={styles.sendArrow}
+            <Pressable
+              onPress={
+                toggleListMode
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                listMode
+                  ? 'Turn off list mode'
+                  : 'Turn on list mode'
+              }
+              style={
+                styles.listButton
+              }
             >
-              ➤
-            </Text>
-          </Pressable>
+              <Text
+                style={[
+                  styles.checkbox,
+                  {
+                    color: listMode
+                      ? colors.primary
+                      : colors.secondary,
+                  },
+                ]}
+              >
+                {listMode
+                  ? '☑'
+                  : '□'}
+              </Text>
+            </Pressable>
+
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder={
+                listMode
+                  ? 'Add a list item...'
+                  : "What's on your mind?"
+              }
+              placeholderTextColor={
+                colors.secondary
+              }
+              multiline
+              textAlignVertical="top"
+              returnKeyType={
+                listMode
+                  ? 'next'
+                  : 'send'
+              }
+              submitBehavior={
+                listMode
+                  ? 'submit'
+                  : 'blurAndSubmit'
+              }
+              onSubmitEditing={
+                handleSubmit
+              }
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={finishNote}
+              accessibilityRole="button"
+              accessibilityLabel={
+                listMode
+                  ? 'Finish list'
+                  : 'Save note'
+              }
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor:
+                    text.trim() ||
+                    listItems.length > 0
+                      ? colors.primary
+                      : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={styles.sendArrow}
+              >
+                ➤
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -785,5 +906,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     marginLeft: 2,
+  },
+
+    tagSuggestions: {
+    borderWidth: 1,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+
+  tagSuggestion: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+
+  tagSuggestionText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
