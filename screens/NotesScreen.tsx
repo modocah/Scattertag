@@ -1,5 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, {
+  useCallback,
+  useState,
+} from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -8,6 +12,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   useFocusEffect,
@@ -56,17 +61,24 @@ export default function NotesScreen() {
   const [listItems, setListItems] = useState<
     Record<number, ListItem[]>
   >({});
+
   const [searchText, setSearchText] =
     useState('');
 
   const [searchableText, setSearchableText] =
     useState<Record<number, string>>({});
 
-    const {
+  const [selectionMode, setSelectionMode] =
+    useState(false);
+
+  const [selectedNoteIds, setSelectedNoteIds] =
+    useState<number[]>([]);
+
+  const {
     colors,
   } = useTheme();
 
-    const loadNotes = useCallback(async () => {
+  const loadNotes = useCallback(async () => {
     try {
       const {
         getNotes,
@@ -127,7 +139,95 @@ export default function NotesScreen() {
     useCallback(() => {
       loadNotes();
     }, [loadNotes])
-  )
+  );
+
+  /*
+   * Selection mode
+   */
+
+  const toggleNoteSelection = (
+    noteId: number
+  ) => {
+    setSelectedNoteIds((current) => {
+      if (current.includes(noteId)) {
+        const next = current.filter(
+          (id) => id !== noteId
+        );
+
+        if (next.length === 0) {
+          setSelectionMode(false);
+        }
+
+        return next;
+      }
+
+      return [...current, noteId];
+    });
+  };
+
+  const enterSelectionMode = (
+    noteId: number
+  ) => {
+    setSelectionMode(true);
+    setSelectedNoteIds([noteId]);
+  };
+
+
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedNoteIds([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedNoteIds.length === 0) {
+      return;
+    }
+
+    Alert.alert(
+      'Delete notes?',
+      `This will permanently delete ${selectedNoteIds.length} ${
+        selectedNoteIds.length === 1
+          ? 'note'
+          : 'notes'
+      }.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const {
+                deleteNoteAndItems,
+              } = await import(
+                '../database/notes'
+              );
+
+              for (const noteId of selectedNoteIds) {
+                await deleteNoteAndItems(
+                  noteId
+                );
+              }
+
+              setSelectedNoteIds([]);
+              setSelectionMode(false);
+
+              await loadNotes();
+            } catch (error) {
+              console.error(
+                'Failed to delete selected notes:',
+                error
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const toggleListItem = async (
     itemId: number,
@@ -177,6 +277,7 @@ export default function NotesScreen() {
   /*
    * Render normal note text with tappable hashtags.
    */
+
   const renderNoteText = (
     note: Note
   ) => {
@@ -243,9 +344,10 @@ export default function NotesScreen() {
     );
   };
 
-    /*
+  /*
    * Render checklist item text with tappable hashtags.
    */
+
   const renderChecklistItemText = (
     listItem: ListItem
   ) => {
@@ -339,23 +441,119 @@ export default function NotesScreen() {
     const items =
       listItems[item.id] ?? [];
 
+    const isSelected =
+      selectedNoteIds.includes(item.id);
+
     return (
-      <View
+      <Swipeable
+        renderRightActions={() => (
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Delete note?',
+                'This will permanently delete this note.',
+                [
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        const {
+                          deleteNoteAndItems,
+                        } = await import(
+                          '../database/notes'
+                        );
+
+                        await deleteNoteAndItems(
+                          item.id
+                        );
+
+                        await loadNotes();
+                      } catch (error) {
+                        console.error(
+                          'Failed to delete note:',
+                          error
+                        );
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+            style={{
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: 80,
+              marginVertical: 4,
+              borderRadius: 16,
+            }}
+          >
+            <Text
+              style={{
+                color: 'red',
+                fontWeight: '700',
+              }}
+            >
+              Delete
+            </Text>
+          </Pressable>
+        )}
+      >
+        <View
         style={[
           styles.noteCard,
           {
             backgroundColor:
               colors.surface,
             borderColor:
-              colors.border,
+              isSelected
+                ? colors.primary
+                : colors.border,
+            borderWidth:
+              isSelected ? 2 : 1,
           },
         ]}
       >
         {/* Card header */}
+
         <View style={styles.noteHeader}>
           <View
             style={styles.noteHeaderLeft}
           >
+            {selectionMode && (
+              <Pressable
+                onPress={() =>
+                  toggleNoteSelection(
+                    item.id
+                  )
+                }
+                style={{
+                  marginRight: 8,
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{
+                  checked: isSelected,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 24,
+                    color: isSelected
+                      ? colors.primary
+                      : colors.secondary,
+                  }}
+                >
+                  {isSelected
+                    ? '☑'
+                    : '□'}
+                </Text>
+              </Pressable>
+            )}
+
             {item.is_pinned === 1 && (
               <Text
                 style={[
@@ -370,19 +568,31 @@ export default function NotesScreen() {
               </Text>
             )}
 
-            <Text
-              style={[
-                styles.date,
-                {
-                  color:
-                    colors.secondary,
-                },
-              ]}
+            <Pressable
+              onLongPress={() =>
+                enterSelectionMode(
+                  item.id
+                )
+              }
+              delayLongPress={500}
+              style={{
+                flexShrink: 1,
+              }}
             >
-              {new Date(
-                item.created_at
-              ).toLocaleString()}
-            </Text>
+              <Text
+                style={[
+                  styles.date,
+                  {
+                    color:
+                      colors.secondary,
+                  },
+                ]}
+              >
+                {new Date(
+                  item.created_at
+                ).toLocaleString()}
+              </Text>
+            </Pressable>
           </View>
 
           <View
@@ -402,42 +612,44 @@ export default function NotesScreen() {
               </Text>
             )}
 
-            {/* Edit button */}
-            <Pressable
-              onPress={() =>
-                navigation.navigate(
-                  'NoteDetail',
-                  {
-                    noteId: item.id,
-                  }
-                )
-              }
-              style={[
-                styles.editButton,
-                {
-                  borderColor:
-                    colors.border,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Edit note"
-            >
-              <Text
+            {!selectionMode && (
+              <Pressable
+                onPress={() =>
+                  navigation.navigate(
+                    'NoteDetail',
+                    {
+                      noteId: item.id,
+                    }
+                  )
+                }
                 style={[
-                  styles.editIcon,
+                  styles.editButton,
                   {
-                    color:
-                      colors.primary,
+                    borderColor:
+                      colors.border,
                   },
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel="Edit note"
               >
-                ✎
-              </Text>
-            </Pressable>
+                <Text
+                  style={[
+                    styles.editIcon,
+                    {
+                      color:
+                        colors.primary,
+                    },
+                  ]}
+                >
+                  ✎
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
         {/* Note content */}
+
         {item.type === 'list' ? (
           <View
             style={styles.listContainer}
@@ -463,33 +675,59 @@ export default function NotesScreen() {
                 >
                   <Pressable
                     onPress={() =>
-                      toggleListItem(
-                        listItem.id,
-                        listItem.is_completed ===
-                          0
-                      )
+                      selectionMode
+                        ? toggleNoteSelection(
+                            item.id
+                          )
+                        : toggleListItem(
+                            listItem.id,
+                            listItem.is_completed ===
+                              0
+                          )
                     }
-                    accessibilityRole="checkbox"
+                    accessibilityRole={
+                      selectionMode
+                        ? 'button'
+                        : 'checkbox'
+                    }
                     accessibilityState={{
                       checked:
-                        listItem.is_completed === 1,
+                        listItem.is_completed ===
+                        1,
                     }}
                   >
-                    <Text
-                      style={[
-                        styles.itemCheckbox,
-                        {
+                    {selectionMode ? (
+                      <Text
+                        style={{
+                          fontSize: 22,
+                          marginRight: 8,
                           color:
-                            listItem.is_completed
+                            isSelected
                               ? colors.primary
                               : colors.secondary,
-                        },
-                      ]}
-                    >
-                      {listItem.is_completed
-                        ? '☑'
-                        : '□'}
-                    </Text>
+                        }}
+                      >
+                        {isSelected
+                          ? '☑'
+                          : '□'}
+                      </Text>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.itemCheckbox,
+                          {
+                            color:
+                              listItem.is_completed
+                                ? colors.primary
+                                : colors.secondary,
+                          },
+                        ]}
+                      >
+                        {listItem.is_completed
+                          ? '☑'
+                          : '□'}
+                      </Text>
+                    )}
                   </Pressable>
 
                   {renderChecklistItemText(
@@ -500,9 +738,19 @@ export default function NotesScreen() {
             )}
           </View>
         ) : (
-          renderNoteText(item)
+          <Pressable
+            onLongPress={() =>
+              enterSelectionMode(
+                item.id
+              )
+            }
+            delayLongPress={500}
+          >
+            {renderNoteText(item)}
+          </Pressable>
         )}
       </View>
+      </Swipeable>
     );
   };
 
@@ -517,101 +765,183 @@ export default function NotesScreen() {
       ]}
     >
       {/* Header */}
+
       <View
         style={[
           styles.header,
           {
-            justifyContent: 'space-between',
+            justifyContent:
+              'space-between',
           },
         ]}
       >
-        <Pressable
-          onPress={() =>
-            navigation.goBack()
-          }
-          style={styles.backButton}
-        >
-          <Text
-            style={[
-              styles.backText,
-              {
-                color: colors.primary,
-              },
-            ]}
-          >
-            ← Back
-          </Text>
-        </Pressable>
-
-      
-      </View>
-
-      {/* Search */}
-      <View
+        {selectionMode ? (
+  <>
+    <Pressable
+      onPress={exitSelectionMode}
+      style={styles.backButton}
+    >
+      <Text
         style={[
-          styles.searchContainer,
+          styles.backText,
           {
-            backgroundColor:
-              colors.surface,
-            borderColor:
-              colors.border,
+            color: colors.primary,
           },
         ]}
       >
-        <Text
-          style={[
-            styles.searchIcon,
-            {
-              color:
-                colors.secondary,
-            },
-          ]}
-        >
-          🔍
-        </Text>
+        Cancel
+      </Text>
+    </Pressable>
 
-        <TextInput
-          value={searchText}
-          onChangeText={setSearchText}
-          placeholder="Search notes..."
-          placeholderTextColor={
-            colors.secondary
-          }
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[
-            styles.searchInput,
-            {
-              color: colors.text,
-            },
-          ]}
-        />
+    <Text
+      style={[
+        styles.title,
+        {
+          color: colors.text,
+          flex: 1,
+          textAlign: 'center',
+        },
+      ]}
+    >
+      {selectedNoteIds.length}{' '}
+      selected
+    </Text>
 
-        {searchText.length > 0 && (
-          <Pressable
-            onPress={() =>
-              setSearchText('')
-            }
-            style={styles.clearButton}
-            accessibilityRole="button"
-            accessibilityLabel="Clear search"
-          >
+    <Pressable
+      onPress={handleDeleteSelected}
+      disabled={selectedNoteIds.length === 0}
+      style={{
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color:
+            selectedNoteIds.length > 0
+              ? 'red'
+              : colors.secondary,
+        }}
+      >
+        Delete
+      </Text>
+    </Pressable>
+  </>
+) : (
+          <>
+            <Pressable
+              onPress={() =>
+                navigation.goBack()
+              }
+              style={styles.backButton}
+            >
+              <Text
+                style={[
+                  styles.backText,
+                  {
+                    color:
+                      colors.primary,
+                  },
+                ]}
+              >
+                ← Back
+              </Text>
+            </Pressable>
+
             <Text
               style={[
-                styles.clearText,
+                styles.title,
                 {
-                  color:
-                    colors.secondary,
+                  color: colors.text,
                 },
               ]}
             >
-              ×
+              Notes
             </Text>
-          </Pressable>
+
+            <View
+              style={{
+                width: 60,
+              }}
+            />
+          </>
         )}
       </View>
 
+      {/* Search */}
+
+      {!selectionMode && (
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              backgroundColor:
+                colors.surface,
+              borderColor:
+                colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.searchIcon,
+              {
+                color:
+                  colors.secondary,
+              },
+            ]}
+          >
+            🔍
+          </Text>
+
+          <TextInput
+            value={searchText}
+            onChangeText={
+              setSearchText
+            }
+            placeholder="Search notes..."
+            placeholderTextColor={
+              colors.secondary
+            }
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={[
+              styles.searchInput,
+              {
+                color: colors.text,
+              },
+            ]}
+          />
+
+          {searchText.length > 0 && (
+            <Pressable
+              onPress={() =>
+                setSearchText('')
+              }
+              style={styles.clearButton}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Text
+                style={[
+                  styles.clearText,
+                  {
+                    color:
+                      colors.secondary,
+                  },
+                ]}
+              >
+                ×
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {/* Notes */}
+
       {filteredNotes.length === 0 ? (
         <View style={styles.emptyState}>
           <Text

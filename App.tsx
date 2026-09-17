@@ -12,6 +12,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   NavigationContainer,
@@ -222,14 +223,14 @@ function CaptureScreen() {
           /#[A-Za-z0-9_]+/g
         ) ?? [];
 
-      await addHashtagsToNote(
-        noteId,
-        hashtags
-      );
+            await addHashtagsToNote(
+              noteId,
+              hashtags
+            );
 
-      await refreshTags();
+            setText('');
 
-      setText('');
+            await refreshTags();
     } catch (error) {
       console.error(
         'Failed to save note:',
@@ -556,14 +557,22 @@ function CaptureScreen() {
                         return;
                       }
 
+                      const matchIndex =
+                        hashtagMatch.index ?? 0;
+
                       const prefix =
                         text.slice(
                           0,
-                          hashtagMatch.index
+                          matchIndex
                         );
 
+                      const separator =
+                        prefix && !/\s$/.test(prefix)
+                          ? ' '
+                          : '';
+
                       const completedText =
-                        `${prefix}#${tag} `;
+                        `${prefix}${separator}#${tag} `;
 
                       setText(
                         completedText
@@ -714,13 +723,14 @@ export default function App() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Capture"
-          screenOptions={{
-            headerShown: false,
-          }}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="Capture"
+            screenOptions={{
+              headerShown: false,
+            }}
         >
           <Stack.Screen
             name="Capture"
@@ -763,6 +773,7 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -139,6 +139,14 @@ export async function deleteNoteAndItems(
   );
 
   await db.runAsync(
+    `DELETE FROM hashtags
+     WHERE id NOT IN (
+       SELECT DISTINCT hashtag_id
+       FROM note_hashtags
+     )`
+  );
+
+  await db.runAsync(
     `DELETE FROM notes
      WHERE id = ?`,
     noteId
