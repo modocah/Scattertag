@@ -119,6 +119,11 @@ export default function CaptureScreen() {
           .slice(0, 5)
       : []; 
     
+  const pinMatch =
+    text.match(/(?:^|\s)\/(p(?:i(?:n)?)?)$/i);
+
+  const showPinSuggestion =
+    !!pinMatch;
   
   const finishNote = async () => {
        /*
@@ -528,6 +533,52 @@ export default function CaptureScreen() {
 
         {/* Composer */}
         <View>
+          {showPinSuggestion && (
+            <View
+              style={[
+                styles.tagSuggestions,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Pressable
+                onPress={() => {
+                  if (!pinMatch) {
+                    return;
+                  }
+
+                  const matchIndex =
+                    pinMatch.index ?? 0;
+
+                  const prefix =
+                    text.slice(0, matchIndex);
+
+                  const separator =
+                    prefix && !/\s$/.test(prefix)
+                      ? ' '
+                      : '';
+
+                  setText(
+                    `${prefix}${separator}/pin `
+                  );
+                }}
+                style={styles.tagSuggestion}
+              >
+                <Text
+                  style={[
+                    styles.tagSuggestionText,
+                    {
+                      color: colors.primary,
+                    },
+                  ]}
+                >
+                  📌 Pin note
+                </Text>
+              </Pressable>
+            </View>
+          )}
           {hashtagSuggestions.length > 0 && (
             <View
               style={[
