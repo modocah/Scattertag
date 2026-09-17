@@ -348,6 +348,47 @@ export async function getNotesByHashtag(
   );
 }
 
+export async function exportNotes() {
+  const notes = await getNotes();
+
+  const exportedNotes = [];
+
+  for (const note of notes) {
+    const hashtags =
+      await getNoteHashtags(note.id);
+
+    const items =
+      note.type === 'list'
+        ? await getListItems(note.id)
+        : [];
+
+    exportedNotes.push({
+      text: note.text,
+      createdAt: note.created_at,
+      updatedAt: note.updated_at,
+      isPinned: note.is_pinned === 1,
+      type: note.type,
+      hashtags: hashtags.map(
+        (tag) => tag.name
+      ),
+      items: items.map((item) => ({
+        text: item.text,
+        position: item.position,
+        completed:
+          item.is_completed === 1,
+      })),
+    });
+  }
+
+  return {
+    app: 'ScatterTag',
+    version: 1,
+    exportedAt:
+      new Date().toISOString(),
+    notes: exportedNotes,
+  };
+}
+
 /*
  * TEMPORARY DEVELOPMENT RESET
  *

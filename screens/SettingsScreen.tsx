@@ -1,4 +1,7 @@
-import React from 'react';
+import React, {
+  useState,
+} from 'react';
+
 import {
   Pressable,
   ScrollView,
@@ -23,6 +26,13 @@ import type {
   ThemePreference,
 } from '../lib/theme';
 
+import {
+  exportNotes,
+} from '../database/notes';
+
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+
 export default function SettingsScreen() {
   const {
     colors,
@@ -31,8 +41,12 @@ export default function SettingsScreen() {
   } = useTheme();
 
   const styles = createStyles(colors);
+
   const navigation =
-  useNavigation();
+    useNavigation();
+
+  const [exporting, setExporting] =
+    useState(false);
 
   const options: {
     value: ThemePreference;
@@ -59,6 +73,67 @@ export default function SettingsScreen() {
     },
   ];
 
+  const handleExport = async () => {
+    if (exporting) {
+      return;
+    }
+
+    try {
+      setExporting(true);
+
+      const data =
+        await exportNotes();
+
+      const json =
+        JSON.stringify(
+          data,
+          null,
+          2
+        );
+
+      const file =
+        new FileSystem.File(
+          FileSystem.Paths.cache,
+          `scattertag-export-${Date.now()}.json`
+        );
+
+        file.create({
+        overwrite: true,
+        });
+
+        file.write(json);
+
+        const fileUri = file.uri;
+
+      const canShare =
+        await Sharing.isAvailableAsync();
+
+      if (!canShare) {
+        console.error(
+          'Sharing is not available on this device.'
+        );
+        return;
+      }
+
+      await Sharing.shareAsync(
+        fileUri,
+        {
+          mimeType:
+            'application/json',
+          dialogTitle:
+            'Export ScatterTag data',
+        }
+      );
+    } catch (error) {
+      console.error(
+        'Failed to export data:',
+        error
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <SafeAreaView
       style={styles.safeArea}
@@ -78,7 +153,8 @@ export default function SettingsScreen() {
             style={[
               styles.backText,
               {
-                color: colors.primary,
+                color:
+                  colors.primary,
               },
             ]}
           >
@@ -167,6 +243,46 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
+
+        <View style={styles.section}>
+          <Text
+            style={styles.sectionTitle}
+          >
+            Data
+          </Text>
+
+          <View style={styles.card}>
+            <Pressable
+              onPress={handleExport}
+              disabled={exporting}
+              style={styles.dataOption}
+            >
+              <View
+                style={
+                  styles.optionText
+                }
+              >
+                <Text
+                  style={
+                    styles.optionLabel
+                  }
+                >
+                  {exporting
+                    ? 'Exporting...'
+                    : 'Export Data'}
+                </Text>
+
+                <Text
+                  style={
+                    styles.description
+                  }
+                >
+                  Save your notes and checklists as a JSON file
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,10 +325,12 @@ function createStyles(
     },
 
     card: {
-      backgroundColor: colors.surface,
+      backgroundColor:
+        colors.surface,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor:
+        colors.border,
       overflow: 'hidden',
     },
 
@@ -222,7 +340,8 @@ function createStyles(
       paddingVertical: 14,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent:
+        'space-between',
     },
 
     selectedOption: {
@@ -252,9 +371,11 @@ function createStyles(
       height: 22,
       borderRadius: 11,
       borderWidth: 2,
-      borderColor: colors.border,
+      borderColor:
+        colors.border,
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent:
+        'center',
     },
 
     radioSelected: {
@@ -267,15 +388,23 @@ function createStyles(
       borderRadius: 5,
     },
 
+    dataOption: {
+      minHeight: 76,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      justifyContent:
+        'center',
+    },
+
     backButton: {
-      alignSelf: 'flex-start',
+      alignSelf:
+        'flex-start',
       marginBottom: 16,
     },
 
     backText: {
       fontSize: 15,
       fontWeight: '600',
-},
+    },
   });
 }
-
