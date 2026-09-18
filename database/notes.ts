@@ -190,7 +190,7 @@ export async function addListItem(
 ) {
   const db = await getDatabase();
 
-  await db.runAsync(
+  const result = await db.runAsync(
     `INSERT INTO list_items
       (note_id, text, position, is_completed)
      VALUES (?, ?, ?, 0)`,
@@ -198,6 +198,8 @@ export async function addListItem(
     text,
     position
   );
+
+  return result.lastInsertRowId;
 }
 
 export async function deleteListItem(

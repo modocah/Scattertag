@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -72,6 +74,11 @@ export default function NoteDetailScreen() {
 
   const [newItemText, setNewItemText] =
     useState('');
+  
+  const addInputRef = useRef<TextInput>(null);
+
+  const scrollViewRef =
+    useRef<ScrollView>(null);
 
   const [isEditingNote, setIsEditingNote] =
     useState(false);
@@ -232,22 +239,39 @@ export default function NoteDetailScreen() {
     try {
       const {
         addListItem,
-        getListItems,
       } = await import('../database/notes');
 
       const position = items.length;
 
-      await addListItem(
-        note.id,
-        cleanedText,
-        position
-      );
+      const newItemId =
+        await addListItem(
+          note.id,
+          cleanedText,
+          position
+        );
 
-      const updatedItems =
-        await getListItems(note.id);
+      setItems((currentItems) => [
+        ...currentItems,
+        {
+          id: newItemId,
+          note_id: note.id,
+          text: cleanedText,
+          position,
+          is_completed: 0,
+        },
+      ]);
 
-      setItems(updatedItems);
       setNewItemText('');
+
+      requestAnimationFrame(() => {
+        addInputRef.current?.focus();
+
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({
+            animated: true,
+          });
+        }, 50);
+      });
     } catch (error) {
       console.error(
         'Failed to add list item:',
@@ -255,7 +279,6 @@ export default function NoteDetailScreen() {
       );
     }
   };
-
   const handleDeleteItem = async (
     itemId: number
   ) => {
@@ -445,11 +468,21 @@ export default function NoteDetailScreen() {
         </Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={
-          styles.scrollContent
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : 'height'
         }
       >
+        <ScrollView
+          ref={scrollViewRef}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={
+            styles.scrollContent
+          }
+        >
         <View
           style={[
             styles.card,
@@ -682,50 +715,46 @@ export default function NoteDetailScreen() {
                 );
               })}
 
-              <View
-                style={styles.addItemRow}
-              >
+              <View style={styles.addItemRow}>
                 <TextInput
+                  ref={addInputRef}
                   value={newItemText}
-                  onChangeText={
-                    setNewItemText
-                  }
+                  onChangeText={setNewItemText}
                   placeholder="Add an item..."
-                  placeholderTextColor={
-                    colors.secondary
-                  }
+                  placeholderTextColor={colors.secondary}
                   returnKeyType="done"
-                  onSubmitEditing={
-                    handleAddItem
-                  }
+                  blurOnSubmit={false}
+                  onSubmitEditing={handleAddItem}
+                  onKeyPress={({ nativeEvent }) => {
+                    if (
+                      nativeEvent.key === 'Enter' &&
+                      newItemText.trim()
+                    ) {
+                      handleAddItem();
+                    }
+                  }}
                   style={[
                     styles.addInput,
                     {
                       color: colors.text,
-                      borderColor:
-                        colors.border,
+                      borderColor: colors.border,
                     },
                   ]}
                 />
 
-                <Pressable
-                  onPress={handleAddItem}
-                  style={[
-                    styles.addButton,
-                    {
-                      backgroundColor:
-                        colors.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={
-                      styles.addButtonText
-                    }
-                  >
-                    +
-                  </Text>
-                </Pressable>
+  <Pressable
+    onPress={handleAddItem}
+    style={[
+      styles.addButton,
+      {
+        backgroundColor: colors.primary,
+      },
+    ]}
+  >
+    <Text style={styles.addButtonText}>
+      +
+    </Text>
+  </Pressable>
               </View>
             </View>
           )}
@@ -755,7 +784,8 @@ export default function NoteDetailScreen() {
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -789,7 +819,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 40,
   },
 
   card: {
