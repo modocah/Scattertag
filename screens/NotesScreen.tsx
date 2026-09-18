@@ -831,43 +831,83 @@ export default function NotesScreen() {
   </>
 ) : (
           <>
-            <Pressable
-              onPress={() =>
-                navigation.goBack()
-              }
-              style={styles.backButton}
-            >
-              <Text
-                style={[
-                  styles.backText,
-                  {
-                    color:
-                      colors.primary,
-                  },
-                ]}
-              >
-                ← Back
-              </Text>
-            </Pressable>
 
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Notes
-            </Text>
+  <View
+    style={{
+      width: '33%',
+      alignItems: 'flex-start',
+    }}
+  >
+    <Pressable
+      onPress={() =>
+        navigation.goBack()
+      }
+      style={styles.backButton}
+    >
+      <Text
+        style={[
+          styles.backText,
+          {
+            color: colors.primary,
+          },
+        ]}
+      >
+        ← Back
+      </Text>
+    </Pressable>
+  </View>
 
-            <View
-              style={{
-                width: 60,
-              }}
-            />
-          </>
-        )}
+  <View
+    style={{
+      width: '34%',
+      alignItems: 'center',
+    }}
+  >
+    <Text
+      style={[
+        styles.title,
+        {
+          color: colors.text,
+        },
+      ]}
+    >
+      Notes
+    </Text>
+  </View>
+
+  <View
+    style={{
+      width: '33%',
+      alignItems: 'flex-end',
+    }}
+  >
+    <Pressable
+      onPress={() => {
+        setSelectionMode(true);
+        setSelectedNoteIds([]);
+      }}
+      style={{
+        paddingVertical: 8,
+        paddingLeft: 8,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="Select notes"
+    >
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: '600',
+          color: colors.primary,
+        }}
+      >
+        Select
+      </Text>
+    </Pressable>
+  </View>
+
+      </>
+    )}
+
       </View>
 
       {/* Search */}
@@ -997,6 +1037,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
   backButton: {
