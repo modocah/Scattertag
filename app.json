@@ -1,15 +1,19 @@
 {
   "expo": {
-    "name": "scattertag",
+    "name": "ScatterTag",
     "slug": "scattertag",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dedoomstudio.scattertag"
     },
+
     "android": {
+      "package": "com.dedoomstudio.scattertag",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -18,9 +22,11 @@
       },
       "predictiveBackGestureEnabled": false
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
       "expo-sqlite",
       "expo-sharing"
