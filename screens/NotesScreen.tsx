@@ -20,6 +20,14 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import {
+  Ionicons,
+} from '@expo/vector-icons';
+import {
+  BannerAd,
+  BannerAdSize,
+  TestIds,
+} from 'react-native-google-mobile-ads';
 
 type RootStackParamList = {
   Capture: undefined;
@@ -765,149 +773,174 @@ export default function NotesScreen() {
       ]}
     >
       {/* Header */}
-
-      <View
-        style={[
-          styles.header,
-          {
-            justifyContent:
-              'space-between',
-          },
-        ]}
-      >
+      <View style={styles.header}>
         {selectionMode ? (
-  <>
-    <Pressable
-      onPress={exitSelectionMode}
-      style={styles.backButton}
-    >
-      <Text
-        style={[
-          styles.backText,
-          {
-            color: colors.primary,
-          },
-        ]}
-      >
-        Cancel
-      </Text>
-    </Pressable>
+          <View style={styles.selectionHeader}>
+            <Pressable
+              onPress={exitSelectionMode}
+              style={styles.backButton}
+            >
+              <Text
+                style={[
+                  styles.backText,
+                  {
+                    color: colors.primary,
+                  },
+                ]}
+              >
+                Cancel
+              </Text>
+            </Pressable>
 
-    <Text
-      style={[
-        styles.title,
-        {
-          color: colors.text,
-          flex: 1,
-          textAlign: 'center',
-        },
-      ]}
-    >
-      {selectedNoteIds.length}{' '}
-      selected
-    </Text>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              {selectedNoteIds.length}{' '}
+              selected
+            </Text>
 
-    <Pressable
-      onPress={handleDeleteSelected}
-      disabled={selectedNoteIds.length === 0}
-      style={{
-        paddingVertical: 8,
-        paddingHorizontal: 8,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 16,
-          fontWeight: '600',
-          color:
-            selectedNoteIds.length > 0
-              ? 'red'
-              : colors.secondary,
-        }}
-      >
-        Delete
-      </Text>
-    </Pressable>
-  </>
-) : (
+            <Pressable
+              onPress={handleDeleteSelected}
+              disabled={
+                selectedNoteIds.length === 0
+              }
+              style={{
+                paddingVertical: 8,
+                paddingHorizontal: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color:
+                    selectedNoteIds.length > 0
+                      ? 'red'
+                      : colors.secondary,
+                }}
+              >
+                Delete
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
           <>
+            <View style={styles.headerTop}>
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    color: colors.text,
+                  },
+                ]}
+              >
+                ScatterTag
+              </Text>
 
-  <View
-    style={{
-      width: '33%',
-      alignItems: 'flex-start',
-    }}
-  >
-    <Pressable
-      onPress={() =>
-        navigation.goBack()
-      }
-      style={styles.backButton}
-    >
-      <Text
-        style={[
-          styles.backText,
-          {
-            color: colors.primary,
-          },
-        ]}
-      >
-        ← Back
-      </Text>
-    </Pressable>
-  </View>
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('Settings')
+                }
+                style={styles.settingsButton}
+                accessibilityRole="button"
+                accessibilityLabel="Settings"
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </Pressable>
+            </View>
 
-  <View
-    style={{
-      width: '34%',
-      alignItems: 'center',
-    }}
-  >
-    <Text
-      style={[
-        styles.title,
-        {
-          color: colors.text,
-        },
-      ]}
-    >
-      Notes
-    </Text>
-  </View>
+            <View style={styles.tabBar}>
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('Capture')
+                }
+                style={styles.tab}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: colors.secondary,
+                    },
+                  ]}
+                >
+                  Capture
+                </Text>
+              </Pressable>
 
-  <View
-    style={{
-      width: '33%',
-      alignItems: 'flex-end',
-    }}
-  >
-    <Pressable
-      onPress={() => {
-        setSelectionMode(true);
-        setSelectedNoteIds([]);
-      }}
-      style={{
-        paddingVertical: 8,
-        paddingLeft: 8,
-      }}
-      accessibilityRole="button"
-      accessibilityLabel="Select notes"
-    >
-      <Text
-        style={{
-          fontSize: 16,
-          fontWeight: '600',
-          color: colors.primary,
-        }}
-      >
-        Select
-      </Text>
-    </Pressable>
-  </View>
+              <Pressable
+                style={[
+                  styles.tab,
+                  styles.activeTab,
+                  {
+                    borderBottomColor:
+                      colors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: colors.primary,
+                    },
+                  ]}
+                >
+                  Notes
+                </Text>
+              </Pressable>
 
-      </>
-    )}
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('Tags')
+                }
+                style={styles.tab}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: colors.secondary,
+                    },
+                  ]}
+                >
+                  Tags
+                </Text>
+              </Pressable>
+            </View>
 
+            <View style={styles.notesActions}>
+              <Pressable
+                onPress={() => {
+                  setSelectionMode(true);
+                  setSelectedNoteIds([]);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Select notes"
+              >
+                <Text
+                  style={[
+                    styles.selectText,
+                    {
+                      color: colors.primary,
+                    },
+                  ]}
+                >
+                  Select
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Search */}
@@ -980,6 +1013,21 @@ export default function NotesScreen() {
         </View>
       )}
 
+      {/* Ad */}
+
+      {!selectionMode && filteredNotes.length > 0 && (
+        <View style={styles.adContainer}>
+          <BannerAd
+            unitId={TestIds.BANNER}
+            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+            requestOptions={{
+              requestNonPersonalizedAdsOnly: true,
+            }}
+          />
+        </View>
+      )}
+
+
       {/* Notes */}
 
       {filteredNotes.length === 0 ? (
@@ -1035,10 +1083,65 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 12,
+    paddingBottom: 0,
+  },
+
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+
+  settingsButton: {
+    padding: 4,
+  },
+
+  settingsIcon: {
+    fontSize: 20,
+  },
+
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 14,
+    gap: 28,
+  },
+
+  tab: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  notesActions: {
+    alignItems: 'flex-end',
+    marginTop: 2,
+    marginBottom: 2,
+  },
+
+  selectText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  selectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   backButton: {
@@ -1210,5 +1313,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  adContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
 
 });
