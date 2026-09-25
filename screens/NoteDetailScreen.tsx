@@ -10,6 +10,7 @@ import {
   TextInput,
   useColorScheme,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -376,25 +377,45 @@ export default function NoteDetailScreen() {
     }
   };
 
-  const handleDeleteNote = async () => {
+  const handleDeleteNote = () => {
     if (!note) {
       return;
     }
 
-    try {
-      const {
-        deleteNoteAndItems,
-      } = await import('../database/notes');
+    Alert.alert(
+      'Delete this note?',
+      "This action can't be undone.",
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const {
+                deleteNoteAndItems,
+              } = await import(
+                '../database/notes'
+              );
 
-      await deleteNoteAndItems(note.id);
+              await deleteNoteAndItems(
+                note.id
+              );
 
-      navigation.goBack();
-    } catch (error) {
-      console.error(
-        'Failed to delete note:',
-        error
-      );
-    }
+              navigation.goBack();
+            } catch (error) {
+              console.error(
+                'Failed to delete note:',
+                error
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {

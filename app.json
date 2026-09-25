@@ -6,12 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dedoomstudio.scattertag"
     },
-
     "android": {
       "package": "com.dedoomstudio.scattertag",
       "adaptiveIcon": {
@@ -22,14 +20,17 @@
       },
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
       "expo-sqlite",
       "expo-sharing"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c2be8a16-ac81-4d0e-a115-4e502c328020"
+      }
+    }
   }
 }

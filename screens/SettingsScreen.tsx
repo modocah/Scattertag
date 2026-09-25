@@ -3,6 +3,10 @@ import React, {
 } from 'react';
 
 import {
+  Ionicons,
+} from '@expo/vector-icons';
+
+import {
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,7 +33,6 @@ import type {
 import {
   exportNotes,
   importNotes,
-  resetDevelopmentDatabase,
 } from '../database/notes';
 
 import * as DocumentPicker from 'expo-document-picker';
@@ -56,24 +59,28 @@ export default function SettingsScreen() {
     value: ThemePreference;
     label: string;
     description: string;
+    icon: keyof typeof Ionicons.glyphMap;
   }[] = [
     {
       value: 'system',
       label: 'System',
       description:
         'Follow your device appearance setting',
+      icon: 'phone-portrait-outline',
     },
     {
       value: 'light',
       label: 'Light',
       description:
         'Always use the light theme',
+      icon: 'sunny-outline',
     },
     {
       value: 'dark',
       label: 'Dark',
       description:
         'Always use the dark theme',
+      icon: 'moon-outline',
     },
   ];
 
@@ -193,24 +200,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleResetDevelopmentData = async () => {
-    try {
-      await resetDevelopmentDatabase();
 
-      alert(
-        'Development data has been cleared.'
-      );
-    } catch (error) {
-      console.error(
-        'Failed to reset development data:',
-        error
-      );
-
-      alert(
-        'Failed to clear development data.'
-      );
-    }
-  };
 
   return (
     <SafeAreaView
@@ -271,6 +261,16 @@ export default function SettingsScreen() {
                     )
                   }
                 >
+                  <Ionicons
+                    name={option.icon}
+                    size={22}
+                    color={
+                      selected
+                        ? colors.primary
+                        : colors.secondary
+                    }
+                  />
+
                   <View
                     style={
                       styles.optionText
@@ -335,6 +335,12 @@ export default function SettingsScreen() {
               disabled={exporting}
               style={styles.dataOption}
             >
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color={colors.secondary}
+              />
+
               <View
                 style={
                   styles.optionText
@@ -364,53 +370,63 @@ export default function SettingsScreen() {
               onPress={handleImport}
               style={styles.dataOption}
             >
-              <View style={styles.optionText}>
-                <Text style={styles.optionLabel}>
+              <Ionicons
+                name="folder-open-outline"
+                size={22}
+                color={colors.secondary}
+              />
+
+              <View
+                style={styles.optionText}
+              >
+                <Text
+                  style={styles.optionLabel}
+                >
                   Import Data
                 </Text>
 
-                <Text style={styles.description}>
+                <Text
+                  style={styles.description}
+                >
                   Restore notes and checklists from a JSON file
-                </Text>
-              </View>
-            </Pressable>
-
-            <Pressable
-              onPress={handleResetDevelopmentData}
-              style={styles.dataOption}
-            >
-              <View style={styles.optionText}>
-                <Text style={styles.optionLabel}>
-                  Reset Development Data
-                </Text>
-
-                <Text style={styles.description}>
-                  Delete all notes, checklists, and hashtags
                 </Text>
               </View>
             </Pressable>
           </View>
         </View>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
+          <Text
+            style={styles.sectionTitle}
+          >
             About ScatterTag
           </Text>
 
           <View style={styles.card}>
-            <View style={styles.aboutContent}>
-              <Text style={styles.aboutName}>
+            <View
+              style={styles.aboutContent}
+            >
+              <Text
+                style={styles.aboutName}
+              >
                 ScatterTag
               </Text>
 
-              <Text style={styles.aboutVersion}>
+              <Text
+                style={styles.aboutVersion}
+              >
                 Version 1.0.0
               </Text>
 
-              <Text style={styles.aboutDeveloper}>
+              <Text
+                style={styles.aboutDeveloper}
+              >
                 Developed by DeDoom Studio
               </Text>
 
-              <Text style={styles.aboutDescription}>
+              <Text
+                style={styles.aboutDescription}
+              >
                 Your notes stay on your device.
               </Text>
             </View>
