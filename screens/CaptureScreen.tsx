@@ -36,6 +36,10 @@ import {
   getHashtags,
 } from '../database/notes';
 
+import {
+  Ionicons,
+} from '@expo/vector-icons';
+
 type RootStackParamList = {
   Capture: undefined;
   Notes: undefined;
@@ -320,36 +324,70 @@ export default function CaptureScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: colors.text,
-              },
-            ]}
-          >
-            ScatterTag
-          </Text>
+          <View style={styles.headerTop}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              ScatterTag
+            </Text>
 
-          <View
-            style={styles.headerButtons}
-          >
             <Pressable
               onPress={() =>
-                navigation.navigate(
-                  'Notes'
-                )
+                navigation.navigate('Settings')
               }
-              style={
-                styles.headerButton
+              style={styles.settingsButton}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+            >
+              <Ionicons
+                name="settings-outline"
+                size={22}
+                color={colors.primary}
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.tabBar}>
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Capture')
               }
+              style={[
+                styles.tab,
+                styles.activeTab,
+                {
+                  borderBottomColor: colors.primary,
+                },
+              ]}
             >
               <Text
                 style={[
-                  styles.headerButtonText,
+                  styles.tabText,
                   {
-                    color:
-                      colors.primary,
+                    color: colors.primary,
+                  },
+                ]}
+              >
+                Capture
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Notes')
+              }
+              style={styles.tab}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  {
+                    color: colors.secondary,
                   },
                 ]}
               >
@@ -359,46 +397,19 @@ export default function CaptureScreen() {
 
             <Pressable
               onPress={() =>
-                navigation.navigate(
-                  'Tags'
-                )
+                navigation.navigate('Tags')
               }
-              style={
-                styles.headerButton
-              }
+              style={styles.tab}
             >
               <Text
                 style={[
-                  styles.headerButtonText,
+                  styles.tabText,
                   {
-                    color:
-                      colors.primary,
+                    color: colors.secondary,
                   },
                 ]}
               >
                 Tags
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                navigation.navigate(
-                  'Settings'
-                )
-              }
-              style={
-                styles.headerButton
-              }
-            >
-              <Text
-                style={[
-                  styles.headerButtonText,
-                  {
-                    color:
-                      colors.primary,
-                  },
-                ]}
-              >
-                ⚙️
               </Text>
             </Pressable>
           </View>
@@ -761,7 +772,10 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 0,
+  },
+
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -772,19 +786,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  headerButtons: {
+  settingsButton: {
+    padding: 4,
+  },
+
+  settingsIcon: {
+    fontSize: 20,
+  },
+
+  tabBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    gap: 28,
   },
 
-  headerButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginLeft: 4,
+  tab: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
   },
 
-  headerButtonText: {
-    fontSize: 16,
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+
+  tabText: {
+    fontSize: 15,
     fontWeight: '600',
   },
 
@@ -796,22 +823,26 @@ const styles = StyleSheet.create({
   },
 
   emptyTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 10,
+    textAlign: 'center',
   },
 
   emptyText: {
-    fontSize: 17,
+    fontSize: 18,
+    textAlign: 'center',
   },
 
   tips: {
-    marginTop: 32,
+    marginTop: 28,
     gap: 10,
+    alignItems: 'center',
   },
 
   tip: {
     fontSize: 14,
+    textAlign: 'center',
   },
 
   listPreview: {

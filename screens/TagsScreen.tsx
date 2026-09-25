@@ -13,6 +13,9 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import {
+  Ionicons,
+} from '@expo/vector-icons';
 
 type RootStackParamList = {
   Capture: undefined;
@@ -142,34 +145,93 @@ export default function TagsScreen() {
       ]}
     >
       <View style={styles.header}>
-        <Pressable
-          onPress={() =>
-            navigation.navigate('Capture')
-          }
-          style={styles.backButton}
-        >
+        <View style={styles.headerTop}>
           <Text
             style={[
-              styles.backText,
+              styles.title,
               {
-                color: colors.primary,
+                color: colors.text,
               },
             ]}
           >
-            ← Back
+            ScatterTag
           </Text>
-        </Pressable>
 
-        <Text
-          style={[
-            styles.title,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          Tags
-        </Text>
+          <Pressable
+            onPress={() =>
+              navigation.navigate('Settings')
+            }
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
+            <Ionicons
+              name="settings-outline"
+              size={22}
+              color={colors.primary}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.tabBar}>
+          <Pressable
+            onPress={() =>
+              navigation.navigate('Capture')
+            }
+            style={styles.tab}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color: colors.secondary,
+                },
+              ]}
+            >
+              Capture
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() =>
+              navigation.navigate('Notes')
+            }
+            style={styles.tab}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color: colors.secondary,
+                },
+              ]}
+            >
+              Notes
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.tab,
+              styles.activeTab,
+              {
+                borderBottomColor:
+                  colors.primary,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                {
+                  color: colors.primary,
+                },
+              ]}
+            >
+              Tags
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {hashtags.length === 0 ? (
@@ -220,25 +282,48 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 0,
   },
 
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingRight: 16,
-    marginBottom: 8,
-  },
-
-  backText: {
-    fontSize: 16,
-    fontWeight: '600',
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
+  },
+
+  settingsButton: {
+    padding: 4,
+  },
+
+  settingsIcon: {
+    fontSize: 20,
+  },
+
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 14,
+    gap: 28,
+  },
+
+  tab: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   list: {
