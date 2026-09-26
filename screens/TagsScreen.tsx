@@ -27,6 +27,7 @@ type RootStackParamList = {
   NoteDetail: {
     noteId: number;
   };
+  Settings: undefined;
 };
 
 type Hashtag = {

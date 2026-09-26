@@ -1156,11 +1156,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-
+ 
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',

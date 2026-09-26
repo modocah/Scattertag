@@ -40,6 +40,7 @@ import {
   addHashtagsToNote,
   getHashtags,
 } from './database/notes';
+import mobileAds from 'react-native-google-mobile-ads';
 
 
 
@@ -64,6 +65,17 @@ const Stack =
 
 export default function App() {
   React.useEffect(() => {
+    // Initialize AdMob
+    mobileAds()
+      .initialize()
+      .then(() => {
+        console.log('AdMob initialized');
+      })
+      .catch((error) => {
+        console.error('AdMob initialization failed:', error);
+      });
+
+    // Initialize database
     getDatabase()
       .then(() =>
         console.log(

@@ -816,6 +816,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+
   header: {
     paddingHorizontal: 20,
     paddingTop: 8,
